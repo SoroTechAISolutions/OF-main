@@ -34,7 +34,31 @@
 
 ---
 
-### Backend API
+### Backend - Hybrid Approach (n8n + Node.js)
+
+**WHY HYBRID:**
+For MVP, we use n8n for AI orchestration (fast prototyping) + Node.js for data/WebSocket (stable, versioned).
+
+#### n8n (AI Orchestration Layer)
+
+**Version: n8n latest (self-hosted)**
+- ✅ Visual workflow builder (rapid development)
+- ✅ Built-in OpenAI integration (GPT-4 Turbo node)
+- ✅ Webhook triggers (easy Chrome Extension integration)
+- ✅ No code deployment needed (change workflows on-the-fly)
+- ✅ Ivan is familiar with n8n (faster MVP delivery)
+- ✅ Perfect for prototyping AI pipelines
+- ❌ Harder to version control (workflows in UI, not Git)
+- ❌ Limited for complex business logic
+
+**Use cases in our platform:**
+- AI message processing workflow
+- OpenAI GPT-4 API calls
+- Pinecone vector search
+- Personality profile sync (scheduled workflows)
+- Webhook endpoints from Chrome Extension
+
+#### Backend API (Node.js/Express/TypeScript)
 
 **Runtime: Node.js 20 LTS**
 - ✅ Fast, non-blocking I/O
@@ -61,6 +85,30 @@
 - ✅ Bidirectional communication
 - ✅ Room-based messaging (one room per operator)
 - ✅ Built-in heartbeat/reconnection
+
+**Use cases in our platform:**
+- REST API endpoints (CRUD operations)
+- JWT authentication
+- WebSocket server (real-time updates to Dashboard)
+- Database ORM (TypeORM)
+- Rate limiting
+- Session management
+
+**Division of Responsibilities:**
+```
+n8n:
+- AI workflows (OpenAI calls)
+- Message processing pipeline
+- Webhook endpoints (from Extension)
+- Scheduled tasks (personality sync)
+
+Node.js Backend:
+- REST API (CRUD)
+- WebSocket (real-time)
+- Authentication (JWT)
+- Database management (TypeORM)
+- Rate limiting
+```
 
 ---
 
@@ -93,32 +141,43 @@
 
 ---
 
-### AI & Machine Learning
+### AI & Machine Learning (via n8n)
 
 **LLM: OpenAI GPT-4 Turbo**
 - ✅ Best quality/price ratio ($0.01 input / $0.03 output per 1M tokens)
 - ✅ Fast response time (~1-2 seconds)
 - ✅ 128k context window (plenty for conversation history)
 - ✅ Instruction-following is excellent
+- ✅ **Accessed via n8n OpenAI node** (easy integration)
 - ❌ Alternative: Claude 3.5 Sonnet (backup if GPT-4 has issues)
 
-**Orchestration: LangChain**
-- ✅ Simplifies LLM app development
-- ✅ Built-in prompt templates
-- ✅ Memory management (conversation history)
-- ✅ Tool/agent support (for future features)
+**Orchestration: n8n Workflows (replaces LangChain for MVP)**
+- ✅ Visual workflow builder (faster than coding)
+- ✅ Built-in OpenAI node (no SDK needed)
+- ✅ Prompt templates in workflow (easy to modify)
+- ✅ Conversation memory via Backend API calls
+- ✅ Can migrate to LangChain later if needed
 
 **Vector DB: Pinecone**
 - ✅ Managed vector database (no maintenance)
 - ✅ Fast semantic search
 - ✅ Good free tier (1M vectors)
-- ✅ Easy integration with LangChain
+- ✅ **Accessed via n8n HTTP Request nodes** (Pinecone REST API)
 - Alternative: Weaviate or ChromaDB (self-hosted if cost becomes issue)
 
 **Embeddings: OpenAI text-embedding-3-small**
 - ✅ $0.02 per 1M tokens (very cheap)
 - ✅ Fast embedding generation
 - ✅ 1536 dimensions (good for semantic search)
+- ✅ **Accessed via n8n OpenAI node** (embeddings endpoint)
+
+**Why n8n for AI (instead of pure code):**
+- ✅ Faster MVP delivery (visual workflows)
+- ✅ Ivan familiar with n8n (no learning curve)
+- ✅ Easy to test/modify prompts without redeployment
+- ✅ Built-in integrations (OpenAI, webhooks, HTTP)
+- ❌ Con: Workflows not in Git (but can export JSON)
+- ❌ Con: Limited for complex logic (but MVP doesn't need it)
 
 ---
 
@@ -146,7 +205,17 @@
 **Containerization: Docker + Docker Compose**
 - ✅ Consistent dev/prod environments
 - ✅ Easy migration to Allen's server (just move docker-compose.yml)
-- ✅ Isolated services (backend, db, redis in separate containers)
+- ✅ Isolated services (n8n, backend, db, redis in separate containers)
+
+**Services in Docker Compose:**
+```yaml
+services:
+  n8n:           # AI orchestration workflows
+  backend:       # Node.js API + WebSocket
+  postgres:      # Database
+  redis:         # Cache + sessions
+  nginx:         # Reverse proxy
+```
 
 **Reverse Proxy: Nginx**
 - ✅ Handles HTTPS termination

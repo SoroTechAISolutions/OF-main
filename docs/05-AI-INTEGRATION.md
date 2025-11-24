@@ -14,61 +14,75 @@ AI is the core differentiator of our platform. We use GPT-4 Turbo to generate co
 
 ---
 
-## AI Architecture
+## AI Architecture (n8n Workflows)
+
+**For MVP, we use n8n visual workflows instead of pure code.** This allows:
+- ✅ Rapid prototyping and iteration
+- ✅ Easy modification without redeployment
+- ✅ Built-in OpenAI integration (no SDK needed)
+- ✅ Visual debugging of AI pipeline
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                 AI Service Layer                     │
+│            n8n Workflow: Process Message            │
 │                                                      │
 │  ┌──────────────────────────────────────────────┐  │
-│  │  1. Receive Request                          │  │
-│  │     - Current message                         │  │
-│  │     - Fan ID                                  │  │
-│  │     - Model ID                                │  │
+│  │  1. Webhook Trigger (from Chrome Extension)  │  │
+│  │     - Receives message data                   │  │
+│  │     - Fan ID, Model ID, message text         │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  2. Load Context                             │  │
-│  │     - Fetch last 20 messages from DB         │  │
+│  │  2. HTTP Request → Backend API               │  │
+│  │     - Store message in PostgreSQL            │  │
+│  │     - Fetch last 20 messages (context)       │  │
 │  │     - Fetch model personality profile        │  │
 │  │     - Fetch fan spending tier & tags         │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  3. Semantic Search (Pinecone)               │  │
+│  │  3. HTTP Request → Pinecone (Vector Search)  │  │
 │  │     - Find similar past conversations        │  │
 │  │     - Retrieve successful responses          │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  4. Build Prompt (LangChain)                 │  │
-│  │     - System instructions                     │  │
-│  │     - Personality injection                   │  │
-│  │     - Conversation context                    │  │
-│  │     - Fan profile                             │  │
+│  │  4. Function Node (Build Prompt)            │  │
+│  │     - System instructions template            │  │
+│  │     - Inject personality profile              │  │
+│  │     - Add conversation context                │  │
+│  │     - Add fan profile data                    │  │
 │  │     - Current message                         │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  5. Call GPT-4 Turbo                         │  │
+│  │  5. OpenAI Node (GPT-4 Turbo)               │  │
 │  │     - Temperature: 0.7 (creative but stable) │  │
 │  │     - Max tokens: 200 (short responses)      │  │
 │  │     - Generate 3-5 options                    │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  6. Post-Process                             │  │
-│  │     - Validate responses (no policy violations) │
+│  │  6. Function Node (Post-Process)            │  │
+│  │     - Validate responses (policy check)       │  │
 │  │     - Rank by relevance                       │  │
-│  │     - Add metadata (PPV suggestion flag)     │  │
+│  │     - Add metadata (PPV flag, confidence)    │  │
 │  └──────────────┬───────────────────────────────┘  │
 │                 │                                    │
 │  ┌──────────────▼───────────────────────────────┐  │
-│  │  7. Return to Backend                        │  │
-│  │     - Array of 3-5 response options          │  │
+│  │  7. Respond to Webhook                       │  │
+│  │     - Return JSON: 3-5 response options      │  │
+│  │     - Include metadata for Dashboard         │  │
 │  └──────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
+
+**Tech Stack:**
+- n8n workflows (self-hosted)
+- OpenAI node (GPT-4 Turbo integration)
+- HTTP Request nodes (Backend API + Pinecone)
+- Function nodes (JavaScript for prompt building)
+- Webhook trigger (from Chrome Extension)
 
 ---
 
@@ -174,34 +188,33 @@ Each model has a personality profile (stored as JSONB in PostgreSQL):
 
 ---
 
-## Context Management
+## Context Management (via n8n)
 
 ### Conversation History
 
 **Problem:** GPT-4 Turbo has 128k token context, but long conversations are expensive and slow.
 
-**Solution:** Use a sliding window approach
+**Solution:** Use a sliding window approach via n8n HTTP Request node
 
-```javascript
-const getConversationContext = async (fanId, modelId) => {
-  // Fetch last 20 messages (enough for context, not too much)
-  const messages = await db.messages.findMany({
-    where: {
-      fanId,
-      modelId
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20
-  });
+**n8n Implementation:**
+1. **HTTP Request Node** → Backend API endpoint `/api/messages/context`
+   - Parameters: `fanId`, `modelId`, `limit: 20`
+   - Returns: Last 20 messages ordered by timestamp
 
-  // Format for prompt
-  return messages.reverse().map(msg => ({
-    role: msg.direction === 'incoming' ? 'fan' : 'model',
-    content: msg.content,
-    timestamp: msg.createdAt
-  }));
-};
-```
+2. **Function Node** → Format for OpenAI prompt
+   ```javascript
+   // n8n Function node code
+   const messages = $input.all()[0].json.messages;
+
+   const formatted = messages.map(msg => ({
+     role: msg.direction === 'incoming' ? 'user' : 'assistant',
+     content: msg.content
+   }));
+
+   return { formatted };
+   ```
+
+3. **Pass to OpenAI Node** → Include in messages array
 
 ### Semantic Memory (Pinecone)
 
@@ -214,48 +227,47 @@ const getConversationContext = async (fanId, modelId) => {
 - Fan: "Hey"
 - Model (with Pinecone): "Hey babe, how are you holding up? 💕" (remembers dog)
 
-**Implementation:**
+**n8n Implementation:**
 
-```javascript
-const embedAndStore = async (fanId, modelId, message) => {
-  // Generate embedding
-  const embedding = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: message
-  });
+**Workflow 1: Embed and Store (Scheduled)**
+1. **Schedule Trigger** → Every 1 hour
+2. **HTTP Request** → Fetch recent messages from Backend API
+3. **Loop Over Items** → For each message:
+   - **OpenAI Node** (Embeddings) → Generate vector
+   - **HTTP Request** → Pinecone Upsert API
+     ```
+     POST https://[index]-[project].svc.[environment].pinecone.io/vectors/upsert
+     Body:
+     {
+       "vectors": [{
+         "id": "{{$json.fanId}}-{{$json.timestamp}}",
+         "values": {{$json.embedding}},
+         "metadata": {
+           "fanId": "{{$json.fanId}}",
+           "modelId": "{{$json.modelId}}",
+           "message": "{{$json.content}}"
+         }
+       }]
+     }
+     ```
 
-  // Store in Pinecone
-  await pinecone.upsert({
-    vectors: [{
-      id: `${fanId}-${Date.now()}`,
-      values: embedding.data[0].embedding,
-      metadata: {
-        fanId,
-        modelId,
-        message,
-        timestamp: new Date().toISOString()
-      }
-    }]
-  });
-};
-
-const retrieveRelevantContext = async (fanId, modelId, currentMessage) => {
-  // Generate embedding for current message
-  const embedding = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
-    input: currentMessage
-  });
-
-  // Search Pinecone for similar past conversations
-  const results = await pinecone.query({
-    vector: embedding.data[0].embedding,
-    topK: 5,
-    filter: { fanId, modelId }
-  });
-
-  return results.matches.map(match => match.metadata.message);
-};
-```
+**Workflow 2: Retrieve Context (in Process Message workflow)**
+1. **OpenAI Node** (Embeddings) → Embed current message
+2. **HTTP Request** → Pinecone Query API
+   ```
+   POST https://[index]-[project].svc.[environment].pinecone.io/query
+   Body:
+   {
+     "vector": {{$json.embedding}},
+     "topK": 5,
+     "filter": {
+       "fanId": "{{$json.fanId}}",
+       "modelId": "{{$json.modelId}}"
+     }
+   }
+   ```
+3. **Function Node** → Extract relevant messages from matches
+4. **Inject into Prompt** → Add to system instructions
 
 ---
 
@@ -291,28 +303,45 @@ const retrieveRelevantContext = async (fanId, modelId, currentMessage) => {
 **Aggressive (only for whales):**
 - "Got a custom video for you, it's $50 but you'll love it 💕"
 
-### Implementation
+### n8n Implementation
+
+**Function Node: Detect PPV Opportunity**
 
 ```javascript
-const detectPPVOpportunity = (fanProfile, conversationHistory) => {
-  const lastMessages = conversationHistory.slice(-5);
+// n8n Function node code
+const fanProfile = $input.all()[0].json.fan;
+const conversationHistory = $input.all()[0].json.messages;
 
-  // Check engagement
-  const fanResponses = lastMessages.filter(m => m.role === 'fan');
-  const avgResponseTime = calculateAvgResponseTime(fanResponses);
-  const isEngaged = avgResponseTime < 300; // 5 minutes
+const lastMessages = conversationHistory.slice(-5);
 
-  // Check spending tier
-  const isSpender = ['whale', 'regular'].includes(fanProfile.spendingTier);
+// Check engagement
+const fanResponses = lastMessages.filter(m => m.direction === 'incoming');
+const avgResponseTime = fanResponses.reduce((sum, m, i) => {
+  if (i === 0) return 0;
+  return sum + (new Date(m.timestamp) - new Date(fanResponses[i-1].timestamp)) / 1000;
+}, 0) / (fanResponses.length - 1);
 
-  // Check recent PPV purchases
-  const daysSinceLastPPV = daysSince(fanProfile.lastPpvPurchase);
-  const notRecentlyPurchased = daysSinceLastPPV > 3;
+const isEngaged = avgResponseTime < 300; // 5 minutes
 
-  // Suggest PPV if conditions met
-  return isEngaged && isSpender && notRecentlyPurchased;
-};
+// Check spending tier
+const isSpender = ['whale', 'regular'].includes(fanProfile.spendingTier);
+
+// Check recent PPV purchases
+const daysSinceLastPPV = (Date.now() - new Date(fanProfile.lastPpvPurchase)) / (1000 * 60 * 60 * 24);
+const notRecentlyPurchased = daysSinceLastPPV > 3;
+
+// Return PPV flag to inject into prompt
+return [{
+  json: {
+    suggestPPV: isEngaged && isSpender && notRecentlyPurchased,
+    ppvReason: `Engagement: ${isEngaged}, Spender: ${isSpender}, Not Recent: ${notRecentlyPurchased}`
+  }
+}];
 ```
+
+**Usage in Workflow:**
+- This Function node runs BEFORE the OpenAI node
+- If `suggestPPV = true`, add instruction to system prompt: "Subtly suggest PPV content in one of the responses"
 
 ---
 
@@ -338,25 +367,49 @@ const detectPPVOpportunity = (fanProfile, conversationHistory) => {
    - Leads toward PPV sale?
    - Appropriate for fan's spending tier?
 
-### Implementation
+### n8n Implementation
+
+**Function Node: Rank Responses (Post-Processing)**
 
 ```javascript
-const rankResponses = (responses, fanProfile, modelPersonality) => {
-  return responses.map(response => {
-    const relevance = calculateRelevance(response);
-    const personalityMatch = calculatePersonalityMatch(response, modelPersonality);
-    const engagement = calculateEngagement(response);
-    const conversion = calculateConversion(response, fanProfile);
+// n8n Function node code
+const responses = $input.all()[0].json.choices.map(c => c.message.content);
+const fanProfile = $input.all()[1].json.fan;
+const modelPersonality = $input.all()[2].json.personality;
 
-    const score =
-      relevance * 0.35 +
-      personalityMatch * 0.25 +
-      engagement * 0.20 +
-      conversion * 0.20;
+const ranked = responses.map((response, index) => {
+  // Simple heuristic scoring (can be improved with ML later)
 
-    return { ...response, score };
-  }).sort((a, b) => b.score - a.score);
-};
+  // Relevance: Check if response is on-topic
+  const relevance = response.length > 20 && response.length < 200 ? 0.9 : 0.5;
+
+  // Personality: Check for emoji usage (model's signature)
+  const emojiCount = (response.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+  const personalityMatch = emojiCount > 0 ? 0.8 : 0.4;
+
+  // Engagement: Check if question or intrigue
+  const hasQuestion = response.includes('?');
+  const engagement = hasQuestion ? 0.9 : 0.6;
+
+  // Conversion: Check if mentions PPV keywords
+  const ppvKeywords = ['special', 'video', 'custom', 'exclusive', 'new'];
+  const hasPPV = ppvKeywords.some(kw => response.toLowerCase().includes(kw));
+  const conversion = hasPPV && fanProfile.spendingTier !== 'low' ? 0.9 : 0.3;
+
+  const score =
+    relevance * 0.35 +
+    personalityMatch * 0.25 +
+    engagement * 0.20 +
+    conversion * 0.20;
+
+  return {
+    text: response,
+    score: score.toFixed(2),
+    rank: index + 1
+  };
+}).sort((a, b) => b.score - a.score);
+
+return [{ json: { responses: ranked } }];
 ```
 
 ---

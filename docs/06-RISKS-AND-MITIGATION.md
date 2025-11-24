@@ -630,6 +630,125 @@ const aiService = new OpenAIService(); // Easy to swap
 
 ---
 
+## n8n-SPECIFIC RISKS (Hybrid Architecture)
+
+### Risk 11: n8n Workflow Versioning Issues
+
+**Probability:** Medium
+**Impact:** Medium
+**Status:** Planned
+
+**Description:**
+- n8n workflows stored in UI, not Git
+- Hard to track changes and rollback
+- Accidental workflow modification can break production
+- No clear diff/merge for collaboration
+
+**Mitigation:**
+1. **Manual Workflow Export (Weekly)**
+   - Export all workflows as JSON
+   - Store in `/root/OF/n8n-workflows/` directory
+   - Commit to Git with descriptive messages
+   - Example: `n8n-workflows/process-message-v1.2.json`
+
+2. **Workflow Documentation**
+   - Document each workflow purpose in comments
+   - Keep screenshots of workflow diagrams
+   - Maintain changelog for workflow updates
+
+3. **Testing Environment**
+   - Duplicate workflows for testing (suffix: `-test`)
+   - Never modify production workflows directly
+   - Test in `-test` workflow first, then copy to production
+
+4. **Backup Before Changes**
+   - Always export current workflow before editing
+   - Keep last 3 versions as backups
+   - Label with date: `process-message-2025-11-24.json`
+
+**Rollback Plan:**
+- Import previous workflow JSON via n8n UI
+- Activate restored workflow
+- Deactivate broken workflow
+
+---
+
+### Risk 12: n8n Server Downtime
+
+**Probability:** Low
+**Impact:** High (AI suggestions stop working)
+**Status:** Planned
+
+**Description:**
+- n8n Docker container crashes
+- n8n UI becomes unresponsive
+- Webhook endpoints return 500 errors
+- AI processing pipeline halts
+
+**Mitigation:**
+1. **Docker Auto-Restart**
+   ```yaml
+   # docker-compose.yml
+   n8n:
+     restart: always
+   ```
+
+2. **Health Check Endpoint**
+   - n8n has built-in health endpoint: `http://localhost:5678/healthz`
+   - Monitor every 60 seconds
+   - Alert if down for > 2 minutes
+
+3. **Fallback to Backend API**
+   - Chrome Extension detects n8n webhook failure
+   - Falls back to direct Backend API call
+   - Backend returns cached/default responses
+   - Operator manually writes message (degraded mode)
+
+4. **Quick Recovery**
+   ```bash
+   # Emergency restart
+   docker-compose restart n8n
+   # Check logs
+   docker-compose logs -f n8n
+   ```
+
+---
+
+### Risk 13: n8n Workflow Complexity Limits
+
+**Probability:** Medium (post-MVP)
+**Impact:** Medium
+**Status:** Planned
+
+**Description:**
+- As AI logic grows, n8n workflows become unwieldy
+- Hard to debug complex multi-branch workflows
+- Performance degradation with too many nodes
+- Limited error handling compared to pure code
+
+**Mitigation:**
+1. **Keep Workflows Simple**
+   - One workflow = one main purpose
+   - Break complex logic into sub-workflows
+   - Use Function nodes for JavaScript logic (max 50 lines)
+
+2. **Migration Path to Pure Code**
+   - After MVP, if workflows become too complex:
+   - Migrate AI logic to Node.js Backend
+   - Use LangChain/LangGraph for advanced features
+   - Keep n8n for simple scheduled tasks only
+
+3. **Performance Monitoring**
+   - Track n8n webhook response times
+   - If > 5 seconds average → optimize or migrate
+   - Use n8n built-in execution logs for debugging
+
+**Decision Point:** Post-MVP (Week 12+)
+- If n8n workflows work well → keep using
+- If too complex/slow → migrate to pure Node.js
+
+---
+
 ## Decision Matrix
 
 | Risk | Probability | Impact | Priority | Status |
@@ -644,6 +763,9 @@ const aiService = new OpenAIService(); // Easy to swap
 | Operator Adoption | Medium | Medium | P3 | Planned |
 | WebSocket Issues | Medium | Medium | P3 | Planned |
 | Vendor Lock-in | Low | Medium | P4 | Planned |
+| **n8n Workflow Versioning** | **Medium** | **Medium** | **P2** | **Planned** |
+| **n8n Server Downtime** | **Low** | **High** | **P1** | **Planned** |
+| **n8n Complexity Limits** | **Medium** | **Medium** | **P3** | **Planned** |
 
 **Priority Levels:**
 - P0: Must address before launch

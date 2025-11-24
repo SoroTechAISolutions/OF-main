@@ -27,7 +27,7 @@ AI-powered chatting platform for OnlyFans agency management. Automates fan commu
 │   ├── 02-TECH-STACK.md         # Technology choices
 │   ├── 03-DEVELOPMENT-PHASES.md # Development roadmap
 │   ├── 04-CHROME-EXTENSION.md   # OF integration details
-│   ├── 05-AI-INTEGRATION.md     # AI/LangChain setup
+│   ├── 05-AI-INTEGRATION.md     # AI/n8n workflows setup
 │   └── 06-RISKS-AND-MITIGATION.md # Critical risks
 ├── CURRENT-TASKS.md             # Active tasks tracker
 └── CHANGELOG.md                 # Project history
@@ -37,9 +37,11 @@ AI-powered chatting platform for OnlyFans agency management. Automates fan commu
 
 1. **Chrome Extension** - Integrates with OnlyFans web interface
 2. **Backend API** - Node.js/Express + PostgreSQL
-3. **AI Service** - GPT-4 + LangChain + Pinecone
+3. **n8n Workflows** - AI orchestration layer (GPT-4 + Pinecone)
 4. **Operator Dashboard** - React-based WhatsApp-style interface
 5. **Analytics** - Revenue tracking & performance metrics
+
+**Architecture:** Hybrid approach using n8n for AI workflows + Node.js for data/WebSocket
 
 ## Getting Started (For Development Team)
 

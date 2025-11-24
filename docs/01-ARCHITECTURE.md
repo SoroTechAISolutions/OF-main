@@ -13,33 +13,40 @@
 │  └────────┬───────────┘  └──────────┬───────────────┘  │
 │           │                          │                   │
 └───────────┼──────────────────────────┼───────────────────┘
-            │ HTTPS                    │ HTTPS + WebSocket
+            │ Webhook                  │ HTTPS + WebSocket
             │                          │
 ┌───────────▼──────────────────────────▼───────────────────┐
-│              BACKEND API SERVER (Node.js)                │
-│                   (localhost:3000)                       │
+│          HYBRID BACKEND (Node.js + n8n)                  │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐  │
-│  │  Express + TypeScript                            │  │
+│  │  Backend API (Express + TypeScript)              │  │
 │  │  - REST API endpoints                            │  │
 │  │  - WebSocket server (Socket.io)                  │  │
 │  │  - Authentication (JWT)                          │  │
-│  │  - Business logic                                │  │
+│  │  - CRUD operations                               │  │
 │  │  - Rate limiting                                 │  │
+│  └──────────┬───────────────────────────────────────┘  │
+│             │                                           │
+│  ┌──────────▼───────────────────────────────────────┐  │
+│  │  n8n Workflows (AI Orchestration)                │  │
+│  │  - Webhook endpoints (from Extension)            │  │
+│  │  - OpenAI API integration                        │  │
+│  │  - Message processing pipeline                   │  │
+│  │  - Pinecone vector search                        │  │
+│  │  - Response generation workflow                  │  │
 │  └──────────┬─────────────────┬─────────────────────┘  │
 └─────────────┼─────────────────┼────────────────────────┘
               │                 │
               │                 │
     ┌─────────▼─────────┐  ┌───▼──────────────────┐
-    │  PostgreSQL DB    │  │   AI Service Layer   │
+    │  PostgreSQL DB    │  │   External APIs      │
     │  (localhost:5432) │  │   ┌──────────────┐   │
-    │                   │  │   │  LangChain   │   │
-    │  - Users          │  │   │  + GPT-4     │   │
-    │  - Models         │  │   └──────┬───────┘   │
-    │  - Fans           │  │          │           │
-    │  - Messages       │  │   ┌──────▼───────┐   │
-    │  - Analytics      │  │   │  Pinecone    │   │
-    │                   │  │   │  Vector DB   │   │
+    │                   │  │   │  OpenAI      │   │
+    │  - Users          │  │   │  GPT-4 API   │   │
+    │  - Models         │  │   └──────────────┘   │
+    │  - Fans           │  │   ┌──────────────┐   │
+    │  - Messages       │  │   │  Pinecone    │   │
+    │  - Analytics      │  │   │  Vector DB   │   │
     └───────────────────┘  │   └──────────────┘   │
                            └──────────────────────┘
     ┌───────────────────┐
@@ -177,20 +184,86 @@ WebSocket: /ws                      # Real-time updates
 
 ---
 
-### 3. AI Service Layer
+### 3. n8n Workflows (AI Orchestration)
+
+**Purpose:** Visual workflow automation for AI message processing
+
+**Why n8n for MVP:**
+- ✅ Rapid development with visual workflow builder
+- ✅ Built-in OpenAI and webhook integrations
+- ✅ Easy to modify logic without code redeployment
+- ✅ Perfect for prototyping AI pipelines
+- ✅ Ivan is familiar with n8n (faster implementation)
+
+**Key Workflows:**
+
+**Workflow 1: Process Incoming Message**
+```
+Trigger: Webhook from Chrome Extension
+    ↓
+1. Validate message data
+    ↓
+2. HTTP Request → Backend API (store message in DB)
+    ↓
+3. Retrieve conversation history (PostgreSQL via Backend API)
+    ↓
+4. Retrieve fan profile & model personality
+    ↓
+5. Build AI prompt (template + context)
+    ↓
+6. OpenAI Node → GPT-4 Turbo API call
+    ↓
+7. Parse AI response (extract 3-5 suggestions)
+    ↓
+8. Return JSON response to Extension
+```
+
+**Workflow 2: Personality Profile Sync**
+```
+Trigger: Schedule (daily) or Webhook
+    ↓
+1. Fetch all models from Backend API
+    ↓
+2. For each model:
+   - Retrieve recent conversations
+   - Analyze writing style patterns
+   - Update personality profile vector in Pinecone
+    ↓
+3. Send update notification to Dashboard
+```
+
+**Tech Stack:**
+- n8n (self-hosted on Ivan's server)
+- OpenAI node (GPT-4 Turbo integration)
+- HTTP Request nodes (Backend API calls)
+- PostgreSQL node (direct DB access if needed)
+- Webhook triggers (from Chrome Extension)
+
+**Data Flow:**
+```
+Chrome Extension → n8n Webhook → OpenAI API → Backend API → PostgreSQL
+                                      ↓
+                                  Pinecone (vector search)
+```
+
+---
+
+### 4. AI Service Layer (via n8n)
 
 **Purpose:** Generate contextual, personalized responses using GPT-4
 
 **Architecture:**
 ```
-AI Pipeline:
-1. Receive message context from Backend
-2. Retrieve conversation history from Pinecone
-3. Load model personality profile
-4. Generate prompt with LangChain
-5. Call GPT-4 Turbo API
-6. Post-process and validate response
-7. Return 3-5 variations to Backend
+n8n AI Pipeline:
+1. Receive message context from Chrome Extension (webhook)
+2. Call Backend API to get conversation history
+3. Retrieve model personality profile (PostgreSQL)
+4. Query Pinecone for similar past conversations (semantic search)
+5. Build dynamic prompt with all context
+6. Call GPT-4 Turbo API via n8n OpenAI node
+7. Parse and validate AI response
+8. Return 3-5 variations to Extension
+9. Log interaction to Backend API
 ```
 
 **Prompt Structure:**
@@ -209,11 +282,11 @@ Constraints:
 - Be flirty but not explicit (OF content policy)
 ```
 
-**Tech Stack:**
-- LangChain (orchestration framework)
-- OpenAI GPT-4 Turbo API
-- Pinecone Vector DB (conversation memory)
-- Embeddings: OpenAI text-embedding-3-small
+**Tech Stack (via n8n):**
+- n8n OpenAI node (GPT-4 Turbo integration)
+- OpenAI Embeddings API (text-embedding-3-small)
+- Pinecone Vector DB (conversation memory, accessed via HTTP nodes)
+- n8n HTTP Request nodes (for API calls)
 
 **Key Features:**
 1. **Context Awareness**

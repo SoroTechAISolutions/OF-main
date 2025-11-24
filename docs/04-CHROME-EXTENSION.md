@@ -30,8 +30,17 @@ manifest.json           # Extension configuration (Manifest V3)
 └── utils/
     ├── scraper.js      # Message scraping logic
     ├── injector.js     # Message sending logic
-    ├── api-client.js   # Backend API communication
+    ├── api-client.js   # Backend API + n8n webhook communication
     └── storage.js      # LocalStorage wrapper
+```
+
+**Communication Flow:**
+```
+Chrome Extension → n8n Webhook (AI processing) → Backend API (data storage)
+                     ↓
+                OpenAI GPT-4 (response generation)
+                     ↓
+                AI Suggestions → Back to Extension
 ```
 
 ---
@@ -80,25 +89,45 @@ manifest.json           # Extension configuration (Manifest V3)
    });
    ```
 
-4. **Send to Backend**
+4. **Send to n8n Webhook (AI Processing)**
    ```javascript
-   const sendToBackend = async (messages) => {
+   const sendToN8nWebhook = async (messages) => {
      try {
-       const response = await fetch('http://localhost:3000/api/messages', {
+       // Send to n8n webhook for AI processing
+       const response = await fetch('http://localhost:5678/webhook/process-message', {
          method: 'POST',
          headers: {
-           'Content-Type': 'application/json',
-           'Authorization': `Bearer ${token}`
+           'Content-Type': 'application/json'
          },
-         body: JSON.stringify(messages)
+         body: JSON.stringify({
+           messages,
+           model_id: getCurrentModelId(),
+           timestamp: Date.now()
+         })
        });
 
-       if (!response.ok) throw new Error('Failed to send');
-       console.log('Messages sent to backend');
+       if (!response.ok) throw new Error('n8n webhook failed');
+       const aiSuggestions = await response.json();
+       console.log('AI suggestions received:', aiSuggestions);
+       return aiSuggestions;
      } catch (error) {
        console.error('Error:', error);
-       // Retry logic here
+       // Fallback: send directly to Backend API
+       return sendToBackendAPI(messages);
      }
+   };
+
+   // Fallback to Backend API (stores in DB)
+   const sendToBackendAPI = async (messages) => {
+     const response = await fetch('http://localhost:3000/api/messages', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${token}`
+       },
+       body: JSON.stringify(messages)
+     });
+     return response.json();
    };
    ```
 

@@ -80,11 +80,11 @@ Original plan: 10 weeks
 
 ---
 
-## Week 2: Backend + Database (Dec 1-7)
+## Week 2: Backend + n8n Setup (Dec 1-7)
 
-**Goal:** Complete Backend API with all core endpoints
+**Goal:** Complete Backend API + n8n workflows foundation
 
-### Tasks
+### Backend Tasks
 - [ ] Implement all REST endpoints (see 01-ARCHITECTURE.md)
 - [ ] Add input validation (Zod or Joi)
 - [ ] Rate limiting middleware
@@ -92,21 +92,38 @@ Original plan: 10 weeks
 - [ ] Database indexes for performance
 - [ ] API documentation (Swagger/OpenAPI)
 
+### n8n Setup Tasks
+- [ ] n8n Docker container setup
+- [ ] OpenAI credentials configuration
+- [ ] Pinecone API key configuration
+- [ ] Create webhook endpoint for Chrome Extension
+- [ ] Test basic OpenAI node (simple prompt/response)
+
 ### Success Criteria
-- ✅ All endpoints tested with Postman
+- ✅ All Backend endpoints tested with Postman
 - ✅ Authentication flow works
 - ✅ Messages CRUD operations complete
-- ✅ Fan/Model management works
+- ✅ n8n accessible and OpenAI node working
+- ✅ Webhook endpoint responds correctly
 
 ---
 
-## Week 3: AI Integration (Dec 8-14)
+## Week 3: n8n AI Workflows (Dec 8-14)
 
-**Goal:** AI generates response suggestions
+**Goal:** AI generates response suggestions via n8n
 
-### Tasks
-- [ ] OpenAI API integration
-- [ ] LangChain setup
+### n8n Workflow Tasks
+- [ ] Build "Process Message" workflow:
+  - Webhook trigger
+  - Validate message data
+  - Call Backend API (store message)
+  - Retrieve conversation history
+  - Build prompt template
+  - OpenAI GPT-4 node
+  - Return AI suggestions
+- [ ] Build "Get Fan Profile" sub-workflow
+- [ ] Build "Store Interaction" sub-workflow
+- [ ] Pinecone integration (HTTP nodes for vector search)
 - [ ] Pinecone Vector DB setup
 - [ ] Prompt engineering:
   - System prompt template
@@ -173,7 +190,7 @@ Match the model's tone. If fan is a whale and context is appropriate, suggest PP
 
 ### Tasks
 - [ ] AI suggestions component
-- [ ] Click message → fetch suggestions
+- [ ] Click message → fetch suggestions (Backend → n8n workflow)
 - [ ] Display 3-5 AI options
 - [ ] Edit suggestion before sending
 - [ ] Send message flow:
@@ -318,7 +335,8 @@ If injection is too risky → pivot to **Manual Bridge**:
   - API documentation
   - Troubleshooting guide
 - [ ] Deployment to Allen's server:
-  - Migrate Docker images
+  - Migrate Docker images (backend, n8n, postgres, redis)
+  - Export n8n workflows (JSON backup)
   - Export PostgreSQL data
   - Update DNS
   - Update Extension API endpoint
@@ -341,10 +359,11 @@ If injection is too risky → pivot to **Manual Bridge**:
 - Model switching in Dashboard
 
 ### Phase 3: Advanced AI
-- Learning from operator edits
+- Learning from operator edits (via n8n workflows)
 - Auto-improve personality profiles
 - Sentiment analysis
 - PPV recommendation engine
+- Migrate from n8n to pure code if needed (LangChain/LangGraph)
 
 ### Phase 4: Operator Management
 - Admin panel for Allen

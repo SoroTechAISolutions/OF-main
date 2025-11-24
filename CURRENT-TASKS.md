@@ -12,7 +12,7 @@
 
 **Tasks:**
 - [ ] Clone GitHub repo to `/root/OF/`
-- [ ] Create Docker Compose setup (PostgreSQL, Redis, Backend, Frontend)
+- [ ] Create Docker Compose setup (PostgreSQL, Redis, Backend, Frontend, **n8n**)
 - [ ] Setup Git workflow and branch strategy
 - [ ] Create `.env.example` with required environment variables
 - [ ] Setup basic project structure (monorepo vs separate repos decision)
@@ -59,11 +59,17 @@
 
 ## 📋 Upcoming Tasks (Week 2)
 
+### n8n Workflows Setup
+- [ ] n8n Docker container running at localhost:5678
+- [ ] OpenAI credentials configured in n8n
+- [ ] Pinecone API key configured
+- [ ] Test basic OpenAI node (simple prompt/response)
+- [ ] Create webhook endpoint for Chrome Extension
+
 ### AI Integration Foundation
-- [ ] Setup OpenAI GPT-4 Turbo API
-- [ ] LangChain basic configuration
-- [ ] Pinecone vector DB account and setup
-- [ ] First prompt engineering tests
+- [ ] First prompt engineering tests in n8n
+- [ ] Build "Process Message" workflow prototype
+- [ ] Test GPT-4 response generation
 
 ### Chrome Extension → Backend Connection
 - [ ] Extension sends scraped messages to Backend API
