@@ -27,7 +27,7 @@ Each risk is evaluated on:
 
 **Mitigation Strategies:**
 
-1. **Anti-Detection Measures (Phase 1)**
+1. **Anti-Detection Measures (Phase 1 - MVP)**
    ```javascript
    // Human-like typing speed
    const humanType = async (element, text) => {
@@ -56,38 +56,84 @@ Each risk is evaluated on:
    };
    ```
 
-2. **Fallback: Manual Bridge Mode**
-   - Extension scrapes messages (read-only) ✅
-   - Backend generates AI suggestions ✅
-   - Dashboard displays suggestions ✅
-   - **Operator manually copies and pastes into OF** ← Manual step
-   - Operator clicks send on OF manually
+2. **MVP Scope: Working Chrome Extension Included**
 
-   **Pros:**
-   - ✅ Zero risk of ban (no automation)
-   - ✅ Still provides 80% of value (AI + CRM + Analytics)
-   - ✅ Faster than typing from scratch
+   **⚠️ Important Commitment:**
+   - **MVP includes a fully working Chrome Extension** - this is the core deliverable
+   - Basic scraping + message sending must work reliably
+   - There is NO "way back to manual" mode in MVP scope
+   - If automation breaks during MVP development, we MUST find a technical solution
 
-   **Cons:**
-   - ❌ Not fully automated
-   - ❌ Slower workflow
-   - ❌ Less impressive demo
+   **Team Resources:**
+   - **Ivan (Project Lead):** Responsible for MVP development and implementation. Capable of handling n8n workflows, API integrations, Chrome Extension basics, and project management
+   - **Development Team:** In-house developers and technical advisors participate in MVP development
+   - **External Specialists:** Available on contract if MVP encounters complex technical roadblocks
 
-3. **Testing Strategy**
-   - Week 1-2: Test on throwaway accounts only
-   - Week 3-4: Test on Allen's test accounts (non-revenue)
-   - Week 5-6: Limited production testing (10 messages/day)
-   - Week 7+: Full production (if no bans detected)
+   **MVP Problem-Solving Approach:**
+
+   **During MVP Development (Weeks 1-10):**
+   - If OF changes CSS classes → In-house team fixes within 1-2 days
+   - If OF changes DOM structure → In-house team reverse engineers and adapts
+   - If basic anti-detection needed → Implement human-like delays, random timing
+   - If Extension breaks → Debug and fix with in-house team + external help if needed
+   - **All Extension fixes are INCLUDED in MVP budget ($9,500)**
+
+   **Example MVP Scenarios:**
+
+   | Problem | Solution Level | Timeline | Included in MVP? |
+   |---------|----------------|----------|------------------|
+   | OF changes CSS classes | In-house team | 4-8 hours | ✅ Yes |
+   | OF changes DOM structure | In-house team | 1-2 days | ✅ Yes |
+   | Need to add random delays | In-house team | 4-6 hours | ✅ Yes |
+   | Extension bug/crash | In-house + external help | 2-3 days | ✅ Yes |
+
+   **Post-MVP: Advanced Anti-Detection (Separate Phase)**
+
+   Advanced anti-bot challenges are considered **Post-MVP enhancements**:
+   - Sophisticated fingerprint detection
+   - OF implements aggressive rate limiting
+   - OF adds CAPTCHA challenges
+   - OF deploys advanced behavioral analysis
+
+   These scenarios would be handled in **Post-MVP Phase** with separate budget and timeline.
+
+3. **Testing Strategy (Conservative Approach)**
+   - **Week 1-2:** Test on throwaway accounts only (20-30 messages total)
+   - **Week 3-4:** Test on Allen's test accounts, non-revenue models (50-100 messages)
+   - **Week 5-6:** Limited production testing (10 messages/day per model)
+   - **Week 7-8:** Gradual ramp-up (20 → 50 → 100 messages/day)
+   - **Week 9+:** Full production (if no bans detected for 2+ weeks)
+
+   **If any warnings/bans detected:**
+   - STOP immediately on that account
+   - Analyze what triggered the detection
+   - Hire contractor to implement better anti-detection
+   - Test fix on throwaway accounts for 1 week
+   - Resume cautiously
 
 4. **Monitoring & Early Warning**
-   - Check OF email notifications daily
+   - Check OF email notifications daily (automated email parsing if possible)
    - Monitor account health in OF dashboard
-   - Track any unusual warnings or restrictions
-   - Have emergency rollback plan
+   - Track any unusual warnings, restrictions, or rate limits
+   - Log every automation action (timestamp, account, action type)
+   - Weekly review of all accounts with Allen
 
-**Decision Point:** Week 7
-If message injection works reliably → keep it
-If too many issues → pivot to Manual Bridge
+   **Red Flags to Watch:**
+   - "Suspicious activity" emails from OF
+   - Account temporary restrictions
+   - Messages not sending
+   - Sudden CAPTCHA requests
+   - Changed account settings without user action
+
+5. **Emergency Response Plan**
+   - **If 1 account gets warning:** Pause automation on that account, analyze logs, adjust approach
+   - **If 2+ accounts get warnings:** PAUSE ALL automation, emergency contractor call, implement fixes
+   - **If account banned:** Document everything, analyze what went wrong, hire senior contractor ASAP
+
+**Decision Point:** Week 7-8
+- ✅ **If automation works reliably:** Keep scaling carefully
+- ⚠️ **If issues detected:** PAUSE → Debug → Fix → Resume (NOT manual fallback)
+- 🚨 **If critical ban risk:** Hire senior contractor immediately to implement advanced stealth techniques
 
 ---
 
