@@ -6,18 +6,57 @@
 ## 🔥 Active Tasks (Week 1)
 
 ### Priority 1: Development Environment Setup
-**Status:** 🟡 Not Started
+**Status:** 🟢 In Progress
 **Owner:** Development Team
 **Deadline:** November 25, 2025
 
-**Tasks:**
-- [ ] Clone GitHub repo to `/root/OF/`
-- [ ] Create Docker Compose setup (PostgreSQL, Redis, Backend, Frontend, **n8n**)
-- [ ] Setup Git workflow and branch strategy
-- [ ] Create `.env.example` with required environment variables
-- [ ] Setup basic project structure (monorepo vs separate repos decision)
+**Architecture Decision: MONOREPO + Shared Infrastructure**
 
-**Deliverable:** `docker-compose up` starts full dev environment
+**Development Setup (Ivan's Server):**
+- ✅ Monorepo structure decided (`/root/OF/`)
+- 🔄 Use existing n8n stack (`/root/n8n/docker-compose.yml`)
+- 🔄 Create separate database `of_agency_db` in existing PostgreSQL container
+- 🔄 Add Redis + Backend to `n8n-network`
+- 🔄 Keep OF project code isolated for easy migration
+
+**Tasks:**
+- [x] Clone GitHub repo to `/root/OF/`
+- [ ] Create new database `of_agency_db` in existing PostgreSQL
+- [ ] Add Redis container to `n8n-network`
+- [ ] Create Backend Docker setup (connects to shared PostgreSQL)
+- [ ] Setup `.env.example` with required environment variables
+- [ ] Document migration strategy for Allen's server
+
+**Deliverable:** Backend + Redis running, connected to existing PostgreSQL/n8n
+
+---
+
+**📦 Migration Strategy (to Allen's Server):**
+
+When migrating to Allen's server, we will:
+
+1. **Export Database:**
+   ```bash
+   docker exec postgres pg_dump -U learnmate of_agency_db > of_agency_backup.sql
+   ```
+
+2. **Export n8n Workflows:**
+   - Export all OF-related workflows from n8n UI to `/root/OF/n8n-workflows/*.json`
+   - These files will be version-controlled in Git
+
+3. **Deploy to Allen's Server:**
+   - Use prepared `docker-compose.production.yml` (includes own PostgreSQL, Redis, n8n)
+   - Import database dump
+   - Import n8n workflows
+   - Update environment variables
+   - Run `docker-compose -f docker-compose.production.yml up -d`
+
+**Estimated Migration Time:** 1-2 hours
+
+**Files to Prepare:**
+- `/root/OF/docker-compose.production.yml` (standalone stack for Allen)
+- `/root/OF/n8n-workflows/` (JSON exports of workflows)
+- `/root/OF/docs/DEPLOYMENT.md` (migration instructions)
 
 ---
 
