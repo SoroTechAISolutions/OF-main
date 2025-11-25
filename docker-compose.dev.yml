@@ -1,0 +1,65 @@
+# Development Docker Compose
+# Uses shared infrastructure from /root/n8n/docker-compose.yml
+# Adds: Redis + Backend API
+
+version: '3.8'
+
+services:
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    container_name: of-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - n8n-network
+    command: redis-server --appendonly yes
+
+  # Backend API (Express + TypeScript)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: of-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Database (shared PostgreSQL)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: of_agency_db
+      DB_USER: learnmate
+      DB_PASSWORD: 564321
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # Backend
+      NODE_ENV: development
+      API_PORT: 3000
+      JWT_SECRET: dev-jwt-secret-change-in-production
+
+      # n8n
+      N8N_WEBHOOK_URL: https://n8n.sorotech.ru/webhook
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - n8n-network
+    depends_on:
+      - redis
+    command: npm run dev
+
+# Use existing network from n8n (prefixed by compose project name)
+networks:
+  n8n-network:
+    name: n8n_n8n-network
+    external: true
+
+volumes:
+  redis_data:
