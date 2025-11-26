@@ -5,6 +5,17 @@
 
 ---
 
+## ⚠️ IMPORTANT DOCUMENTS (Always Check)
+
+| Document | Purpose | Status |
+|----------|---------|--------|
+| [VARIABLES-TODO.md](./docs/VARIABLES-TODO.md) | Secrets & variables to update before production | 🔴 Review before deploy |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Migration instructions to Allen's server | 📖 Reference |
+
+**NEVER DELETE THIS SECTION** - These documents must be reviewed before any production deployment.
+
+---
+
 ## ✅ Completed Tasks
 
 ### Priority 1: Development Environment Setup ✅
