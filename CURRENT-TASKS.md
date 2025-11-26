@@ -52,19 +52,64 @@ curl http://localhost:3000/health
 
 ---
 
+### Priority 2: OnlyFans DOM Research ✅
+**Status:** COMPLETED
+**Completed:** November 26, 2025
+
+**What Was Done:**
+- [x] Setup VNC environment for live browser research
+- [x] Created shared browser session (VNC + API sync)
+- [x] Logged into real OnlyFans account
+- [x] Researched chat page DOM structure
+- [x] Documented all key selectors for Chrome Extension
+- [x] Created technical documentation (`docs/onlyfans-dom-research.md`)
+
+**Key Findings:**
+| Component | Technology |
+|-----------|-----------|
+| Frontend | Vue.js |
+| Text Editor | TipTap (ProseMirror) |
+| Slider | Swiper.js |
+| CSS | BEM methodology |
+
+**Critical Selectors for Extension:**
+```javascript
+// Message input
+'[contenteditable].tiptap.ProseMirror'
+
+// Send button
+'.b-chat__btn-submit'
+
+// Chat messages
+'.b-chat__item-message'
+
+// Chat list items
+'a.b-chats__item__link'
+
+// PPV content
+'.m-purchase.m-not-paid-yet'
+```
+
+**Documentation:** `/root/OF/docs/onlyfans-dom-research.md`
+
+---
+
 ## 🔥 Active Tasks (Week 1)
 
-### Priority 2: Chrome Extension Proof of Concept
-**Status:** 🟡 Not Started
+### Priority 3: Chrome Extension Proof of Concept
+**Status:** 🟢 In Progress
 **Owner:** Development Team
 **Deadline:** November 27, 2025
 
-**Tasks:**
-- [ ] Research OnlyFans web interface structure
-- [ ] Create basic Chrome Extension manifest
+**Completed:**
+- [x] Research OnlyFans web interface structure ✅
+- [x] Document DOM selectors and structure ✅
+
+**Remaining:**
+- [ ] Create basic Chrome Extension manifest (Manifest V3)
 - [ ] Build content script that scrapes OF messages (read-only)
-- [ ] Test on Allen's real OF account
-- [ ] Document DOM selectors and structure
+- [ ] Implement message detection with found selectors
+- [ ] Test on real OF account
 - [ ] Identify anti-detection requirements
 
 **Deliverable:** Extension that successfully reads messages from OF and console.logs them
