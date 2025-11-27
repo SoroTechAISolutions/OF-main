@@ -133,3 +133,26 @@ document.querySelectorAll('[class*=unlock]')
 1. Watch `.b-chats__list-dialogues` for new chats
 2. Get unread count from notification badges
 3. Extract user info from `.b-available-users__item`
+
+## Message Direction Detection
+
+**Critical Finding:** Messages have different CSS classes based on sender.
+
+| Message Type | CSS Class | Avatar | Position |
+|--------------|-----------|--------|----------|
+| **Incoming** (from other party) | `.b-chat__message` (no m-from-me) | Has `.g-avatar` | Left |
+| **Outgoing** (from current user) | `.b-chat__message.m-from-me` | No avatar | Right |
+
+**Detection Logic:**
+```javascript
+// Check if message is from current user (outgoing)
+const isOutgoing = messageElement.classList.contains('m-from-me');
+
+// Check if message is incoming
+const isIncoming = !messageElement.classList.contains('m-from-me');
+```
+
+**For Agency Use (Creator Account):**
+When logged in as creator, the logic is:
+- Messages WITH `m-from-me` = sent BY the creator (to fans)
+- Messages WITHOUT `m-from-me` = received FROM fans (need AI response)
