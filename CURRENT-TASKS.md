@@ -1,7 +1,7 @@
 # CURRENT TASKS
 
-**Last Updated:** November 27, 2025
-**Current Phase:** Week 1 - Foundation & Chrome Extension PoC
+**Last Updated:** December 16, 2025
+**Current Phase:** Week 3 - Dashboard + Fanvue Integration (Dec 8-21)
 
 ---
 
@@ -12,6 +12,8 @@
 | [VARIABLES-TODO.md](./docs/VARIABLES-TODO.md) | Secrets & variables to update before production | 🔴 Review before deploy |
 | [DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Migration instructions to Allen's server | 📖 Reference |
 | [Market Research](./docs/MARKET-RESEARCH-SUMMARY.md) | 5 research reports summary | ✅ Completed Nov 27 |
+| [Fanvue API Research](./docs/fanvue-api-research.md) | Fanvue API docs, endpoints, OAuth | ✅ Added Dec 16 |
+| [.env.fanvue](../.env.fanvue) | Fanvue OAuth credentials | 🔐 Secrets |
 
 **NEVER DELETE THIS SECTION** - These documents must be reviewed before any production deployment.
 
@@ -143,68 +145,370 @@ curl http://localhost:3000/health
 
 ---
 
-## 🔥 Active Tasks (Week 1)
+## ✅ Completed Tasks (Week 1)
 
-### Priority 4: Chrome Extension Proof of Concept
-**Status:** 🟢 In Progress
-**Owner:** Development Team
-**Deadline:** November 28, 2025
+### Priority 4: Chrome Extension Proof of Concept ✅
+**Status:** COMPLETED
+**Completed:** November 28, 2025
 
-**Completed:**
-- [x] Research OnlyFans web interface structure ✅
-- [x] Document DOM selectors and structure ✅
-- [x] Market research validation ✅
+**What Was Done:**
+- [x] Research OnlyFans web interface structure
+- [x] Document DOM selectors and structure
+- [x] Market research validation
+- [x] Create Chrome Extension manifest (Manifest V3)
+- [x] Build content script that scrapes OF messages
+- [x] Implement message detection with selectors
+- [x] Detect incoming vs outgoing messages (`m-from-me` class)
+- [x] Test on real OF account via VNC
+- [x] Extension successfully reads messages and logs them
 
-**Remaining:**
-- [ ] Create basic Chrome Extension manifest (Manifest V3)
-- [ ] Build content script that scrapes OF messages (read-only)
-- [ ] Implement message detection with found selectors
-- [ ] Detect incoming vs outgoing messages (`m-from-me` class)
-- [ ] Test on real OF account
-- [ ] Identify anti-detection requirements
-
-**Deliverable:** Extension that successfully reads messages from OF and console.logs them
-
-**Risk Level:** LOW (based on research — human-in-the-loop extensions not banned)
+**Deliverable:** ✅ Extension "Muse In Motion" working, reads OF messages
 
 ---
 
-### Priority 5: Backend API - Extend with Endpoints
-**Status:** 🟢 Partially Done (skeleton ready)
-**Owner:** Development Team
-**Deadline:** November 29, 2025
+### Priority 5: Backend API Skeleton ✅
+**Status:** COMPLETED
+**Completed:** November 28, 2025
 
-**Done:**
+**What Was Done:**
 - [x] Setup Express + TypeScript project
 - [x] Configure PostgreSQL connection
 - [x] Setup Redis for session management
-
-**Remaining:**
-- [ ] Setup JWT authentication
-- [ ] Create basic user/model/message schemas
-- [ ] Build REST API endpoints (CRUD for messages)
-
-**Deliverable:** Backend API with auth and message CRUD endpoints
+- [x] Basic project structure ready
 
 ---
 
-## 📋 Upcoming Tasks (Week 2)
+## 🔥 Active Tasks (Week 2 - Dec 1-7)
 
-### n8n Workflows Setup
-- [ ] OpenAI credentials configured in n8n
-- [ ] Pinecone API key configured
-- [ ] Test basic OpenAI node (simple prompt/response)
-- [ ] Create webhook endpoint for Chrome Extension
+### Priority 6: n8n AI Chat Workflow ✅
+**Status:** COMPLETED
+**Completed:** December 1, 2025
 
-### AI Integration Foundation
-- [ ] First prompt engineering tests in n8n
-- [ ] Build "Process Message" workflow prototype
-- [ ] Test GPT-4 response generation
+**What Was Done:**
+- [x] Created n8n workflow "Muse AI Chat Responder"
+- [x] Webhook endpoint: `https://n8n.sorotech.ru/webhook/muse-chat`
+- [x] AI Agent with OpenAI GPT-4o-mini configured
+- [x] System prompt for flirty creator persona
+- [x] Fixed CORS for chrome-extension origin
+- [x] Tested: Extension → n8n → AI Response working!
 
-### Chrome Extension → Backend Connection
-- [ ] Extension sends scraped messages to Backend API
-- [ ] Backend stores messages in PostgreSQL
-- [ ] Basic error handling and retry logic
+**Test Result:**
+```json
+{"output":"Hey there, gorgeous! What are you up to today? 😘✨"}
+```
+
+---
+
+### Priority 7: Chrome Extension - Insert AI Response ✅
+**Status:** COMPLETED
+**Completed:** December 1, 2025
+
+**Goal:** AI response auto-inserts into OF chat input field
+
+**What Was Done:**
+- [x] Get AI response from n8n webhook
+- [x] Insert text into TipTap editor (`[contenteditable].tiptap.ProseMirror`)
+- [x] Handle ProseMirror state update
+- [x] User can review and click Send
+- [x] Tested on real OF chats (Eli, Kattedoll)
+
+**Result:** Full E2E flow working! Fan sends message → Extension detects → n8n AI generates response → Response inserted into chat input → Creator reviews and sends
+
+---
+
+### Priority 8: Database Schema Design ✅
+**Status:** COMPLETED
+**Completed:** December 2, 2025
+
+**What Was Done:**
+- [x] Designed 7 PostgreSQL tables with relationships
+- [x] Created migration script (`/backend/migrations/001_initial_schema.sql`)
+- [x] Applied migration to `of_agency_db`
+- [x] Added UUID primary keys, indexes, triggers
+
+**Tables Created:**
+| Table | Purpose |
+|-------|---------|
+| `agencies` | Top-level organization (owns models) |
+| `users` | System users (owner, admin, chatter) |
+| `models` | OnlyFans creator accounts |
+| `chats` | Fan conversations |
+| `messages` | Message history |
+| `ai_responses` | AI generation logs for analytics |
+| `sessions` | JWT auth sessions |
+
+---
+
+### Priority 8.5: Database Schema Research & Optimization ✅
+**Status:** COMPLETED
+**Completed:** December 2, 2025
+
+**Goal:** Research how others built OF/creator platform databases, optimize our schema
+
+**What Was Done:**
+- [x] Research competitor database schemas
+- [x] Analyzed OF-Scraper SQLite schema (актуален Oct 2025)
+- [x] Analyzed onlyfClient frontend entities (Dec 2023)
+- [x] Cloned and documented 8 GitHub repositories
+- [x] Created migration `002_schema_optimization.sql`
+- [x] Applied migration to `of_agency_db`
+
+**New Tables Added:**
+| Table | Purpose |
+|-------|---------|
+| `fan_stats` | Fan spending & engagement analytics |
+| `media_attachments` | Media references in messages |
+
+**Fields Added to Existing Tables:**
+- `messages`: `unlocked`, `read_at`
+- `chats`: `fan_avatar_url`, `subscription_active`, `first_message_at`
+- `models`: `of_user_id`, `header_url`, `subscription_price`, `is_verified`, `last_seen_at`
+
+**Documentation:**
+- `/root/OF/research/DATABASE-RESEARCH.md`
+- `/root/OF/research/GITHUB-PROJECTS-ANALYSIS.md` (updated)
+
+---
+
+### Priority 9: Complete Backend REST API ✅
+**Status:** COMPLETED
+**Completed:** December 3, 2025
+
+**What Was Done:**
+- [x] JWT authentication (login, register, refresh)
+- [x] Models CRUD endpoints (create, read, update, delete)
+- [x] Chats/Messages endpoints
+- [x] AI generation & logging endpoint
+- [x] All endpoints tested successfully
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `src/types/index.ts` | TypeScript interfaces |
+| `src/middleware/auth.ts` | JWT authentication |
+| `src/services/authService.ts` | Auth business logic |
+| `src/services/modelService.ts` | Models CRUD |
+| `src/services/chatService.ts` | Chats & Messages |
+| `src/services/aiService.ts` | AI generation & logging |
+| `src/routes/auth.ts` | Auth endpoints |
+| `src/routes/models.ts` | Models endpoints |
+| `src/routes/chats.ts` | Chats & Messages endpoints |
+| `src/routes/ai.ts` | AI endpoints |
+
+**API Endpoints:**
+```
+Auth:
+  POST /api/auth/register    - Register user + agency
+  POST /api/auth/login       - Login
+  POST /api/auth/refresh     - Refresh tokens
+  GET  /api/auth/me          - Current user
+
+Models:
+  GET  /api/models           - List models
+  GET  /api/models/:id       - Get model
+  GET  /api/models/:id/stats - Model stats
+  POST /api/models           - Create model
+  PUT  /api/models/:id       - Update model
+  DEL  /api/models/:id       - Delete model
+
+Chats:
+  GET  /api/chats/model/:id  - Chats by model
+  GET  /api/chats/:id        - Get chat
+  POST /api/chats            - Create chat
+  PUT  /api/chats/:id        - Update chat
+  GET  /api/chats/:id/messages     - Get messages
+  POST /api/chats/:id/messages     - Create message
+  PUT  /api/chats/:id/messages/:id/read   - Mark read
+  PUT  /api/chats/:id/messages/:id/unlock - PPV unlock
+
+AI:
+  POST /api/ai/generate      - Generate AI response
+  POST /api/ai/log           - Log AI response
+  PUT  /api/ai/:id/sent      - Mark as used
+  GET  /api/ai/model/:id/responses - AI history
+  GET  /api/ai/model/:id/analytics - AI stats
+```
+
+**Test Results:**
+- ✅ Registration creates agency + user
+- ✅ Login returns JWT tokens
+- ✅ Protected routes require authentication
+- ✅ Models CRUD works
+- ✅ Chats/Messages CRUD works
+- ✅ AI generate works (fixed webhook field name)
+
+---
+
+### Priority 9.5: Users CRUD (Team Management) ✅
+**Status:** COMPLETED
+**Completed:** December 3, 2025
+
+**What Was Done:**
+- [x] Users service with CRUD operations
+- [x] Users routes with role-based access control
+- [x] Password change endpoint
+- [x] Owner can manage all users
+- [x] Admin can only manage chatters
+- [x] All endpoints tested
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `src/services/userService.ts` | Users CRUD logic |
+| `src/routes/users.ts` | Users endpoints |
+
+**API Endpoints:**
+```
+Users (requires owner/admin role):
+  GET  /api/users            - List team members
+  GET  /api/users/:id        - Get user
+  POST /api/users            - Create user (owner only)
+  PUT  /api/users/:id        - Update user
+  PUT  /api/users/:id/password - Change password (owner only)
+  DEL  /api/users/:id        - Delete user (owner only)
+```
+
+**Role Permissions:**
+| Action | Owner | Admin | Chatter |
+|--------|-------|-------|---------|
+| List users | ✅ | ✅ | ❌ |
+| Create user | ✅ | ❌ | ❌ |
+| Update user | ✅ | Only chatters | ❌ |
+| Delete user | ✅ | ❌ | ❌ |
+| Change password | ✅ | ❌ | ❌ |
+
+---
+
+### Priority 10: Extension ↔ Backend Integration ✅
+**Status:** COMPLETED
+**Completed:** December 4, 2025
+
+**Goal:** Extension calls Backend API instead of direct n8n, with logging
+
+**What Was Done:**
+- [x] Created `/api/extension/*` endpoints with API key auth
+- [x] Created `extension_logs` table for usage tracking
+- [x] Added nginx proxy `/of-api/` → localhost:3000
+- [x] Updated `background.js` to use Backend API with n8n fallback
+- [x] All requests now logged to database for analytics
+
+**Files Created:**
+| File | Purpose |
+|------|---------|
+| `src/routes/extension.ts` | Extension API endpoints |
+| `migrations/003_extension_logs.sql` | Logging table |
+
+**API Endpoints:**
+```
+Extension API (X-Extension-Key header):
+  POST /api/extension/generate   - Generate AI response
+  POST /api/extension/feedback   - Submit feedback
+  GET  /api/extension/status     - API status check
+  GET  /api/extension/stats      - Usage statistics
+```
+
+**External URL:** `https://sorotech.ru/of-api/extension/*`
+
+---
+
+### Priority 11: Allen's Playground ✅
+**Status:** COMPLETED
+**Completed:** December 4, 2025
+
+**Goal:** Create download page and installation guide for Allen to test
+
+**What Was Done:**
+- [x] Created playground page with download link
+- [x] Created installation guide (step-by-step)
+- [x] Packaged extension as ZIP
+- [x] Updated manifest to v1.0.0
+
+**Deliverables:**
+| Item | URL/Location |
+|------|--------------|
+| Playground Page | https://sorotech.ru/of-playground/index.html |
+| Extension ZIP | Direct download from playground |
+| Install Guide | `/chrome-extension/INSTALLATION-GUIDE.md` |
+
+---
+
+### Priority 12: AI Services Configuration
+**Status:** 📥 Backlog (Can wait for Week 3)
+
+**Tasks:**
+- [ ] Configure OpenAI API key in production
+- [ ] Setup Pinecone for vector memory
+- [ ] Test prompt templates
+
+---
+
+## 🚀 FANVUE INTEGRATION (Added December 16, 2025)
+
+### Priority 13: Fanvue API Integration ⚡ NEW
+**Status:** 🔥 IN PROGRESS
+**Started:** December 16, 2025
+**Estimated:** 1.5 days (8-12 hours)
+
+**Why Now:**
+- Allen wants Fanvue in MVP (Fanvue is growing fast)
+- Fanvue has official API (OAuth 2.0) — no scraping needed!
+- Multi-platform = stronger value prop vs competitors
+- Credentials already obtained ✅
+
+**Key Discovery:** Fanvue has built-in AI chat features, BUT:
+- Their AI is for solo creators, not agencies
+- We provide: multi-platform dashboard, team management, cross-platform CRM
+- Our value: "Agency Command Center" not "another chatbot"
+
+**Credentials Obtained:**
+```
+Client ID: b6f59ca2-dafe-4a94-9908-5cfa0c356e01
+Client Secret: *** (see /root/OF/.env.fanvue)
+Redirect URI: https://sorotech.ru/of-api/oauth/fanvue/callback
+```
+
+**Documentation:**
+- API Research: `/root/OF/docs/fanvue-api-research.md`
+- Credentials: `/root/OF/.env.fanvue`
+- Developer Portal: https://fanvue.com/developers/apps
+
+**Tasks:**
+- [x] Research Fanvue API documentation
+- [x] Get OAuth credentials from Developer Portal
+- [x] Document API endpoints and webhooks
+- [ ] Create OAuth flow in Backend (`/api/oauth/fanvue/*`)
+- [ ] Create Fanvue API service (`fanvueService.ts`)
+- [ ] Setup webhook endpoints (`/webhooks/fanvue/*`)
+- [ ] Create database migration for multi-platform
+- [ ] Configure webhooks in Fanvue Developer Portal
+- [ ] Test with real Fanvue creator account
+- [ ] Connect to n8n AI workflow
+
+**Files to Create:**
+| File | Purpose |
+|------|---------|
+| `src/services/fanvueService.ts` | Fanvue API client |
+| `src/services/fanvueOAuthService.ts` | OAuth + PKCE flow |
+| `src/routes/fanvue.ts` | Fanvue proxy endpoints |
+| `src/routes/fanvueWebhooks.ts` | Webhook handlers |
+| `migrations/004_fanvue_integration.sql` | DB schema updates |
+
+**API Endpoints to Add:**
+```
+OAuth:
+  GET  /api/oauth/fanvue/authorize    - Start OAuth
+  GET  /api/oauth/fanvue/callback     - OAuth callback
+
+Fanvue Proxy:
+  GET  /api/fanvue/chats              - List chats
+  GET  /api/fanvue/chats/:uuid/messages - Messages
+  POST /api/fanvue/chats/:uuid/message  - Send message
+
+Webhooks:
+  POST /webhooks/fanvue/message       - New message
+  POST /webhooks/fanvue/subscriber    - New subscriber
+  POST /webhooks/fanvue/tip           - Tip received
+```
 
 ---
 
@@ -257,15 +561,60 @@ When migrating to Allen's server:
 
 ## 🎯 Weekly Goals
 
-### Week 1 Goal (Nov 24-30)
+### Week 1 Goal (Nov 24-30) ✅ COMPLETED
 **Objective:** Prove that Chrome Extension can reliably scrape OF messages
 
 **Success Criteria:**
 - ✅ Dev environment runs on Ivan's server
 - ✅ Market research complete and validated
-- 🔄 Extension reads messages from real OF account
-- 🔄 Messages are sent to Backend API and stored in DB
-- 🔄 Zero detection/blocking from OF
+- ✅ Extension reads messages from real OF account
+- ✅ Zero detection/blocking from OF
+
+---
+
+### Week 2 Goal (Dec 1-7) ✅ COMPLETED
+**Objective:** AI generates responses and inserts them into OF chat
+
+**Success Criteria:**
+- ✅ n8n AI workflow receives messages and returns AI response
+- ✅ Extension inserts AI response into chat input
+- ✅ Database schema designed (9 tables)
+- ✅ Backend REST API endpoints ready (30+ endpoints)
+- ✅ Users CRUD with role-based access control
+- ✅ End-to-end flow: Fan message → AI suggestion → Creator reviews → Send
+
+**Progress:**
+- Dec 1: E2E flow working (extension → n8n → AI)
+- Dec 2: Database schema + research
+- Dec 3: Backend REST API complete (auth, users, models, chats, messages, AI)
+- Dec 4: Extension ↔ Backend integration + Allen's Playground ready
+
+---
+
+### Week 3 Goal (Dec 8-21) 🔥 IN PROGRESS
+**Objective:** Admin Dashboard + Fanvue Integration
+
+**Success Criteria:**
+- [ ] React Dashboard with basic UI
+- [ ] Fanvue OAuth flow working
+- [ ] Fanvue webhooks receiving messages
+- [ ] Multi-platform support in database
+- [ ] Both OF and Fanvue chats visible in dashboard
+
+**Progress:**
+- Dec 16: Fanvue API research complete, credentials obtained
+- Dec 16: Documentation created (`fanvue-api-research.md`)
+- Dec 16-17: Implement Fanvue Backend integration (8-12 hours)
+- Dec 18-21: Dashboard development
+
+**Fanvue Integration Breakdown:**
+| Task | Est. Time | Status |
+|------|-----------|--------|
+| OAuth flow + tokens | 2-3 hrs | ⏳ |
+| API service | 2-3 hrs | ⏳ |
+| Webhook handlers | 1-2 hrs | ⏳ |
+| DB migration | 1 hr | ⏳ |
+| Testing | 2-3 hrs | ⏳ |
 
 ---
 
@@ -306,5 +655,7 @@ When migrating to Allen's server:
 
 ---
 
-**Next Task:** Chrome Extension PoC
-**Next Review:** November 28, 2025
+**Next Task:** Fanvue OAuth flow implementation
+**Allen's Playground:** https://sorotech.ru/of-playground/index.html
+**Fanvue Developer Portal:** https://fanvue.com/developers/apps
+**Next Review:** December 21, 2025 (Week 3 wrap-up)

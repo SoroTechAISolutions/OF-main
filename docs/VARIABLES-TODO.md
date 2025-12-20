@@ -74,6 +74,62 @@ app.use(cors({
 **When:** Week 3-4 (if implementing RAG)
 **Owner:** Allen
 
+### 8. Extension API Key ⚠️ NEW
+**Location:**
+- Backend: `/root/OF/backend/src/routes/extension.ts` (line 15)
+- Extension: `/root/OF/chrome-extension/background.js` (line 10)
+**Current Value:** `muse-alpha-2025` (DEVELOPMENT PLACEHOLDER)
+**Action Required:** Generate unique API key for production
+**When:** Before giving extension to Allen or any real users
+**How to generate:**
+```bash
+openssl rand -hex 24
+```
+**Note:** This is a simple API key for alpha testing. In production, should be per-agency keys stored in database.
+
+---
+
+## Fanvue Integration Variables ⚠️ NEW (December 16, 2025)
+
+### 9. Fanvue OAuth Credentials
+**Location:** `/root/OF/.env.fanvue`
+**Developer Portal:** https://fanvue.com/developers/apps
+**Status:** ✅ Client ID obtained, waiting for Client Secret
+
+| Variable | Value | Status |
+|----------|-------|--------|
+| `FANVUE_CLIENT_ID` | `b6f59ca2-dafe-4a94-9908-5cfa0c356e01` | ✅ Set |
+| `FANVUE_CLIENT_SECRET` | `PASTE_YOUR_SECRET_HERE` | ⚠️ NEEDED |
+| `FANVUE_REDIRECT_URI` | `https://sorotech.ru/of-api/oauth/fanvue/callback` | ✅ Set |
+| `FANVUE_SCOPES` | `read:self read:chat write:chat read:fan read:insights` | ✅ Set |
+| `FANVUE_WEBHOOK_SECRET` | TBD | ⚠️ Get from Fanvue |
+
+**Action Required:**
+1. Copy Client Secret from Fanvue Developer Portal
+2. Paste into `/root/OF/.env.fanvue`
+3. Configure webhook endpoints in Fanvue Portal
+
+### 10. Fanvue API Configuration (Static)
+**Location:** `/root/OF/.env.fanvue`
+**Status:** ✅ Ready (don't change these)
+
+| Variable | Value |
+|----------|-------|
+| `FANVUE_AUTH_URL` | `https://auth.fanvue.com/oauth2/auth` |
+| `FANVUE_TOKEN_URL` | `https://auth.fanvue.com/oauth2/token` |
+| `FANVUE_API_BASE_URL` | `https://api.fanvue.com` |
+| `FANVUE_API_VERSION` | `2025-06-26` |
+
+### 11. Fanvue Webhook Endpoints
+**Location:** Fanvue Developer Portal → Webhooks section
+**Status:** ⚠️ Need to configure in portal
+
+| Event | Endpoint URL |
+|-------|--------------|
+| Message Received | `https://sorotech.ru/of-api/webhooks/fanvue/message` |
+| New Subscriber | `https://sorotech.ru/of-api/webhooks/fanvue/subscriber` |
+| Tip Received | `https://sorotech.ru/of-api/webhooks/fanvue/tip` |
+
 ---
 
 ## Environment-Specific Variables
@@ -118,6 +174,8 @@ app.use(cors({
 - [ ] Enable HTTPS on all endpoints
 - [ ] Remove any hardcoded development values
 - [ ] Review all console.log statements (remove sensitive data logging)
+- [ ] Verify Fanvue credentials are set in production
+- [ ] Configure Fanvue webhooks with production URLs
 
 ---
 
@@ -126,6 +184,8 @@ app.use(cors({
 | Date | Variable | Change | By |
 |------|----------|--------|-----|
 | 2025-11-25 | Initial | Created document | Dev Team |
+| 2025-12-04 | EXTENSION_API_KEY | Added Extension API Key placeholder | Dev Team |
+| 2025-12-16 | FANVUE_* | Added Fanvue OAuth credentials | Dev Team |
 
 ---
 
