@@ -5,6 +5,8 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../db/connection';
+import { generateAIResponse, logAIResponse } from '../services/aiService';
+import { sendMessage } from '../services/fanvueService';
 
 const router = Router();
 
@@ -95,12 +97,15 @@ async function saveMessage(
     return; // Already processed
   }
 
+  // direction: 'outgoing' = from creator, 'incoming' = from fan
+  const direction = isFromCreator ? 'outgoing' : 'incoming';
+
   await query(
     `INSERT INTO messages (
        chat_id, platform, fanvue_message_uuid,
-       content, is_from_creator, sent_at
+       content, direction, created_at
      ) VALUES ($1, 'fanvue', $2, $3, $4, $5)`,
-    [chatId, messageUuid, content, isFromCreator, sentAt]
+    [chatId, messageUuid, content, direction, sentAt]
   );
 }
 
@@ -165,13 +170,48 @@ router.post('/', async (req: Request, res: Response) => {
         await query(
           `UPDATE chats SET
              last_message_at = $1,
-             unread_count = unread_count + 1,
              updated_at = NOW()
            WHERE id = $2`,
           [createdAt, chatId]
         );
 
         console.log(`Saved new message from ${senderUsername} to model ${modelId}`);
+
+        // Check if AI auto-response is enabled for this model
+        const modelSettings = await query(
+          'SELECT ai_enabled, persona_prompt FROM models WHERE id = $1',
+          [modelId]
+        );
+
+        if (modelSettings.rows[0]?.ai_enabled) {
+          try {
+            console.log(`Generating AI response for ${senderUsername}...`);
+
+            // Generate AI response
+            const aiResult = await generateAIResponse({
+              modelId,
+              fanMessage: content,
+              personaPrompt: modelSettings.rows[0].persona_prompt
+            });
+
+            if (aiResult.response) {
+              // Log the AI response
+              await logAIResponse({
+                modelId,
+                fanMessage: content,
+                generatedResponse: aiResult.response,
+                generationTimeMs: aiResult.generationTimeMs
+              });
+
+              // Send the response via Fanvue API
+              await sendMessage(modelId, senderUuid, aiResult.response);
+              console.log(`AI response sent to ${senderUsername} in ${aiResult.generationTimeMs}ms`);
+            }
+          } catch (aiError) {
+            console.error('AI auto-response failed:', aiError);
+            // Don't throw - we still successfully received the webhook
+          }
+        }
         break;
       }
 
@@ -257,6 +297,107 @@ router.post('/', async (req: Request, res: Response) => {
 router.post('/test', async (req: Request, res: Response) => {
   console.log('Fanvue test webhook received:', req.body);
   res.json({ success: true, message: 'Test webhook received' });
+});
+
+// ============================================
+// Event-specific webhook routes
+// (Fanvue sends to different URLs per event type)
+// ============================================
+
+/**
+ * Message received webhook
+ */
+router.post('/message', async (req: Request, res: Response) => {
+  // Add event type if not present
+  req.body.event = req.body.event || 'message.received';
+
+  // Forward to main handler by calling the route handler
+  console.log('Fanvue message webhook received:', JSON.stringify(req.body));
+
+  try {
+    // Fanvue payload structure:
+    // recipientUuid = creator, sender = fan, message = message data
+    const { recipientUuid, sender, message } = req.body;
+
+    const modelId = await findModelByFanvueUuid(recipientUuid);
+    if (!modelId) {
+      console.warn(`No model found for Fanvue creator: ${recipientUuid}`);
+      return res.status(200).json({ received: true, processed: false });
+    }
+
+    // Extract message and sender data
+    const content = message?.text;
+    const messageUuid = message?.uuid || req.body.messageUuid;
+    const sentAt = message?.createdAt;
+    const senderUuid = sender?.uuid;
+    const senderUsername = sender?.handle;
+    const senderDisplayName = sender?.displayName;
+
+    if (!content || !senderUuid) {
+      console.log('Missing message content or sender');
+      return res.status(200).json({ received: true, processed: false });
+    }
+
+    const chatId = await findOrCreateChat(modelId, senderUuid, senderUsername, senderDisplayName);
+    await saveMessage(chatId, messageUuid || `msg-${Date.now()}`, content, false, sentAt || new Date().toISOString());
+
+    // Update chat
+    await query(
+      `UPDATE chats SET last_message_at = $1, updated_at = NOW() WHERE id = $2`,
+      [sentAt || new Date().toISOString(), chatId]
+    );
+
+    console.log(`Saved message from ${senderUsername} to model ${modelId}`);
+
+    // Check if AI auto-response is enabled
+    const modelSettings = await query('SELECT ai_enabled, persona_prompt FROM models WHERE id = $1', [modelId]);
+
+    if (modelSettings.rows[0]?.ai_enabled) {
+      try {
+        console.log(`Generating AI response for ${senderUsername}...`);
+        const aiResult = await generateAIResponse({
+          modelId,
+          fanMessage: content,
+          personaPrompt: modelSettings.rows[0].persona_prompt
+        });
+
+        if (aiResult.response) {
+          await logAIResponse({
+            modelId,
+            fanMessage: content,
+            generatedResponse: aiResult.response,
+            generationTimeMs: aiResult.generationTimeMs
+          });
+
+          await sendMessage(modelId, senderUuid, aiResult.response);
+          console.log(`AI response sent to ${senderUsername} in ${aiResult.generationTimeMs}ms`);
+        }
+      } catch (aiError) {
+        console.error('AI auto-response failed:', aiError);
+      }
+    }
+
+    res.json({ received: true, processed: true });
+  } catch (error) {
+    console.error('Fanvue message webhook error:', error);
+    res.status(200).json({ received: true, error: 'Processing failed' });
+  }
+});
+
+/**
+ * Subscriber webhook
+ */
+router.post('/subscriber', async (req: Request, res: Response) => {
+  console.log('Fanvue subscriber webhook received:', JSON.stringify(req.body).slice(0, 200));
+  res.json({ received: true, processed: true });
+});
+
+/**
+ * Tip webhook
+ */
+router.post('/tip', async (req: Request, res: Response) => {
+  console.log('Fanvue tip webhook received:', JSON.stringify(req.body).slice(0, 200));
+  res.json({ received: true, processed: true });
 });
 
 export default router;

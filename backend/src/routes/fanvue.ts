@@ -23,7 +23,126 @@ import {
 
 const router = Router();
 
-// All routes require authentication
+// ============================================
+// OAuth Callback (NO AUTH - redirect from Fanvue)
+// ============================================
+
+/**
+ * @swagger
+ * /api/fanvue/oauth/callback:
+ *   get:
+ *     summary: Fanvue OAuth callback (no auth required)
+ *     tags: [Fanvue]
+ */
+router.get('/oauth/callback', async (req: Request, res: Response) => {
+  try {
+    const { code, state, error } = req.query;
+
+    if (error) {
+      console.error('Fanvue OAuth error:', error);
+      return res.redirect('/dashboard?fanvue=error&reason=' + error);
+    }
+
+    if (!code || !state) {
+      return res.redirect('/dashboard?fanvue=error&reason=missing_params');
+    }
+
+    // Exchange code for tokens
+    const tokens = await exchangeCodeForTokens(
+      code as string,
+      state as string
+    );
+
+    // Save tokens
+    await saveFanvueTokens(
+      tokens.modelId,
+      tokens.accessToken,
+      tokens.refreshToken,
+      tokens.expiresIn
+    );
+
+    // Fetch profile and update with UUID
+    try {
+      const profile = await getCreatorProfile(tokens.modelId);
+      await saveFanvueTokens(
+        tokens.modelId,
+        tokens.accessToken,
+        tokens.refreshToken,
+        tokens.expiresIn,
+        profile.uuid,
+        profile.username
+      );
+    } catch (profileError) {
+      console.error('Failed to fetch Fanvue profile:', profileError);
+    }
+
+    // Show success page
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Fanvue Connected!</title>
+        <style>
+          body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+          .card { background: white; padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+          h1 { color: #22c55e; margin-bottom: 10px; }
+          p { color: #666; }
+          .check { font-size: 64px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="check">✅</div>
+          <h1>Fanvue Connected!</h1>
+          <p>Your account is now linked.</p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">Model ID: ${tokens.modelId}</p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Fanvue OAuth callback error:', error);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Connection Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #1a1a2e; }
+          .card { background: white; padding: 40px; border-radius: 16px; text-align: center; }
+          h1 { color: #ef4444; }
+          .icon { font-size: 64px; margin-bottom: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="icon">❌</div>
+          <h1>Connection Failed</h1>
+          <p>Please try again or contact support.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// ============================================
+// Quick OAuth Init (TEMPORARY - no auth for emergency re-auth)
+// ============================================
+router.get('/oauth/quick-init', async (req: Request, res: Response) => {
+  try {
+    const modelId = req.query.modelId as string || 'd28611ae-23d7-4160-a476-5d59b7ff1d8c';
+    const { authUrl } = await startOAuthFlow(modelId);
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Quick OAuth init error:', error);
+    res.status(500).json({ error: 'Failed to start OAuth' });
+  }
+});
+
+// ============================================
+// Protected Routes (require authentication)
+// ============================================
 router.use(authenticate);
 
 // ============================================
@@ -77,79 +196,6 @@ router.post('/auth/start', async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to start OAuth flow'
     });
-  }
-});
-
-/**
- * @swagger
- * /api/fanvue/oauth/callback:
- *   get:
- *     summary: Fanvue OAuth callback
- *     tags: [Fanvue]
- *     parameters:
- *       - in: query
- *         name: code
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: state
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       302:
- *         description: Redirect to dashboard
- */
-router.get('/oauth/callback', async (req: Request, res: Response) => {
-  try {
-    const { code, state, error } = req.query;
-
-    if (error) {
-      console.error('Fanvue OAuth error:', error);
-      return res.redirect('/dashboard?fanvue=error&reason=' + error);
-    }
-
-    if (!code || !state) {
-      return res.redirect('/dashboard?fanvue=error&reason=missing_params');
-    }
-
-    // Exchange code for tokens
-    const tokens = await exchangeCodeForTokens(
-      code as string,
-      state as string
-    );
-
-    // Get creator profile to get UUID and username
-    // Note: We need to save tokens first to make API calls
-    await saveFanvueTokens(
-      tokens.modelId,
-      tokens.accessToken,
-      tokens.refreshToken,
-      tokens.expiresIn
-    );
-
-    // Now fetch profile and update with UUID
-    try {
-      const profile = await getCreatorProfile(tokens.modelId);
-      await saveFanvueTokens(
-        tokens.modelId,
-        tokens.accessToken,
-        tokens.refreshToken,
-        tokens.expiresIn,
-        profile.uuid,
-        profile.username
-      );
-    } catch (profileError) {
-      console.error('Failed to fetch Fanvue profile:', profileError);
-      // Continue anyway, tokens are saved
-    }
-
-    // Redirect to dashboard with success
-    res.redirect('/dashboard?fanvue=connected&model=' + tokens.modelId);
-  } catch (error) {
-    console.error('Fanvue OAuth callback error:', error);
-    res.redirect('/dashboard?fanvue=error&reason=token_exchange_failed');
   }
 });
 

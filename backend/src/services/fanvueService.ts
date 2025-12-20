@@ -170,10 +170,13 @@ export async function sendMessage(
     mediaIds?: string[];
   } = {}
 ): Promise<FanvueMessage> {
-  const body: any = { content };
+  // Fanvue uses 'text' field, not 'content'
+  const body: any = { text: content };
 
   if (options.price) body.price = options.price;
   if (options.mediaIds?.length) body.mediaIds = options.mediaIds;
+
+  console.log('Sending Fanvue message:', { fanUserUuid, text: content.slice(0, 50) });
 
   const response = await fanvueRequest<{ data: FanvueMessage }>(
     modelId,

@@ -1,4 +1,4 @@
-# Development Dockerfile for OF Agency Backend
+# Dockerfile for OF Agency Backend
 FROM node:20-alpine
 
 WORKDIR /app
@@ -10,8 +10,11 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Build TypeScript
+RUN npm run build
+
 # Expose port
 EXPOSE 3000
 
-# Development command (with hot reload)
-CMD ["npm", "run", "dev"]
+# Run compiled JavaScript (production-like)
+CMD ["node", "dist/index.js"]

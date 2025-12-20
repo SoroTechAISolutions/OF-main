@@ -115,20 +115,22 @@ export async function exchangeCodeForTokens(
   const { codeVerifier, modelId } = pkceData;
   pkceStore.delete(state); // One-time use
 
-  // Exchange code for tokens
+  // Exchange code for tokens (using Basic Auth as required by Fanvue)
   const tokenParams = new URLSearchParams({
     grant_type: 'authorization_code',
-    client_id: FANVUE_CONFIG.clientId,
-    client_secret: FANVUE_CONFIG.clientSecret,
     code,
     redirect_uri: FANVUE_CONFIG.redirectUri,
     code_verifier: codeVerifier
   });
 
+  // Fanvue requires client_secret_basic authentication
+  const basicAuth = Buffer.from(`${FANVUE_CONFIG.clientId}:${FANVUE_CONFIG.clientSecret}`).toString('base64');
+
   const response = await fetch(FANVUE_CONFIG.tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth}`
     },
     body: tokenParams.toString()
   });
@@ -146,6 +148,14 @@ export async function exchangeCodeForTokens(
     token_type: string;
     scope: string;
   };
+
+  console.log('Fanvue token response:', {
+    has_access_token: !!tokenData.access_token,
+    has_refresh_token: !!tokenData.refresh_token,
+    refresh_token_value: tokenData.refresh_token ? tokenData.refresh_token.slice(0, 20) + '...' : 'NULL',
+    expires_in: tokenData.expires_in,
+    scope: tokenData.scope
+  });
 
   return {
     accessToken: tokenData.access_token,
@@ -167,15 +177,17 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
 }> {
   const tokenParams = new URLSearchParams({
     grant_type: 'refresh_token',
-    client_id: FANVUE_CONFIG.clientId,
-    client_secret: FANVUE_CONFIG.clientSecret,
     refresh_token: refreshToken
   });
+
+  // Fanvue requires client_secret_basic authentication
+  const basicAuth = Buffer.from(`${FANVUE_CONFIG.clientId}:${FANVUE_CONFIG.clientSecret}`).toString('base64');
 
   const response = await fetch(FANVUE_CONFIG.tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth}`
     },
     body: tokenParams.toString()
   });
@@ -211,6 +223,14 @@ export async function saveFanvueTokens(
   fanvueUsername?: string
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+  console.log('Saving Fanvue tokens:', {
+    modelId,
+    has_access_token: !!accessToken,
+    has_refresh_token: !!refreshToken,
+    refresh_token_preview: refreshToken ? refreshToken.slice(0, 20) + '...' : 'NULL',
+    expiresAt
+  });
 
   await query(
     `UPDATE models SET
