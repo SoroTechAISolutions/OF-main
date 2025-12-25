@@ -6,6 +6,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { pool } from '../db/connection';
 import { generateAIResponse, logAIResponse } from '../services/aiService';
+import { getAvailablePersonas, getPersonaDetails } from '../services/promptBuilderService';
 import { ApiResponse } from '../types';
 
 const router = Router();
@@ -92,7 +93,7 @@ router.post('/generate', async (req: Request, res: Response) => {
   const startTime = Date.now();
 
   try {
-    const { fanMessage, fanName, modelUsername, chatHistory } = req.body;
+    const { fanMessage, fanName, modelUsername, chatHistory, personaId, modelName } = req.body;
 
     if (!fanMessage) {
       const response: ApiResponse = {
@@ -102,14 +103,14 @@ router.post('/generate', async (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
-    console.log(`[Extension] Generate request: "${fanMessage.substring(0, 50)}..."`);
+    console.log(`[Extension] Generate request: "${fanMessage.substring(0, 50)}..." persona: ${personaId || 'default'}`);
 
-    // Generate AI response via n8n
+    // Generate AI response via n8n with dynamic persona
     const aiResult = await generateAIResponse({
       fanMessage,
       chatHistory,
-      // For playground, use default persona
-      personaPrompt: undefined
+      personaId: personaId || undefined,
+      modelName: modelName || modelUsername || undefined
     });
 
     const generationTime = Date.now() - startTime;
@@ -119,6 +120,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       fanMessage,
       fanName: fanName || 'Unknown',
       modelUsername: modelUsername || 'default',
+      personaId: aiResult.personaUsed,
       generatedResponse: aiResult.response,
       generationTimeMs: generationTime
     }).catch(err => {
@@ -129,11 +131,12 @@ router.post('/generate', async (req: Request, res: Response) => {
       success: true,
       data: {
         response: aiResult.response,
-        generationTimeMs: generationTime
+        generationTimeMs: generationTime,
+        personaUsed: aiResult.personaUsed
       }
     };
 
-    console.log(`[Extension] Generated in ${generationTime}ms`);
+    console.log(`[Extension] Generated in ${generationTime}ms using persona: ${aiResult.personaUsed}`);
     res.json(response);
 
   } catch (error) {
@@ -351,21 +354,96 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 /**
+ * @swagger
+ * /api/extension/personas:
+ *   get:
+ *     summary: Get list of available AI personas
+ *     tags: [Extension]
+ *     security:
+ *       - ExtensionKey: []
+ *     responses:
+ *       200:
+ *         description: List of personas
+ */
+router.get('/personas', async (req: Request, res: Response) => {
+  try {
+    const personaIds = getAvailablePersonas();
+    const personas = personaIds.map(id => getPersonaDetails(id)).filter(Boolean);
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        personas,
+        count: personas.length
+      }
+    };
+    res.json(response);
+
+  } catch (error) {
+    console.error('[Extension] Personas error:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to get personas'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * @swagger
+ * /api/extension/personas/{personaId}:
+ *   get:
+ *     summary: Get specific persona details
+ *     tags: [Extension]
+ *     security:
+ *       - ExtensionKey: []
+ */
+router.get('/personas/:personaId', async (req: Request, res: Response) => {
+  try {
+    const { personaId } = req.params;
+    const persona = getPersonaDetails(personaId);
+
+    if (!persona) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Persona not found'
+      };
+      return res.status(404).json(response);
+    }
+
+    const response: ApiResponse = {
+      success: true,
+      data: persona
+    };
+    res.json(response);
+
+  } catch (error) {
+    console.error('[Extension] Persona error:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to get persona'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
  * Helper: Log extension response to database
  */
 async function logExtensionResponse(data: {
   fanMessage: string;
   fanName: string;
   modelUsername: string;
+  personaId: string;
   generatedResponse: string;
   generationTimeMs: number;
 }): Promise<string> {
   const result = await pool.query(
     `INSERT INTO extension_logs
-     (fan_message, fan_name, model_username, generated_response, generation_time_ms)
-     VALUES ($1, $2, $3, $4, $5)
+     (fan_message, fan_name, model_username, persona_id, generated_response, generation_time_ms)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id`,
-    [data.fanMessage, data.fanName, data.modelUsername, data.generatedResponse, data.generationTimeMs]
+    [data.fanMessage, data.fanName, data.modelUsername, data.personaId, data.generatedResponse, data.generationTimeMs]
   );
 
   return result.rows[0].id;

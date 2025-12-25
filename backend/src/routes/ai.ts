@@ -59,7 +59,8 @@ router.post('/generate', async (req: Request, res: Response) => {
       modelId: model_id,
       fanMessage: fan_message,
       chatHistory: chat_history,
-      personaPrompt: model.persona_prompt || undefined
+      personaId: model.persona_id || undefined,
+      modelName: model.display_name || undefined
     });
 
     // Optionally log to database

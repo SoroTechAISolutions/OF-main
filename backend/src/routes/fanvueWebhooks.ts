@@ -179,7 +179,7 @@ router.post('/', async (req: Request, res: Response) => {
 
         // Check if AI auto-response is enabled for this model
         const modelSettings = await query(
-          'SELECT ai_enabled, persona_prompt FROM models WHERE id = $1',
+          'SELECT ai_enabled, persona_id FROM models WHERE id = $1',
           [modelId]
         );
 
@@ -191,7 +191,7 @@ router.post('/', async (req: Request, res: Response) => {
             const aiResult = await generateAIResponse({
               modelId,
               fanMessage: content,
-              personaPrompt: modelSettings.rows[0].persona_prompt
+              personaId: modelSettings.rows[0].persona_id
             });
 
             if (aiResult.response) {
@@ -350,7 +350,7 @@ router.post('/message', async (req: Request, res: Response) => {
     console.log(`Saved message from ${senderUsername} to model ${modelId}`);
 
     // Check if AI auto-response is enabled
-    const modelSettings = await query('SELECT ai_enabled, persona_prompt FROM models WHERE id = $1', [modelId]);
+    const modelSettings = await query('SELECT ai_enabled, persona_id FROM models WHERE id = $1', [modelId]);
 
     if (modelSettings.rows[0]?.ai_enabled) {
       try {
@@ -358,7 +358,7 @@ router.post('/message', async (req: Request, res: Response) => {
         const aiResult = await generateAIResponse({
           modelId,
           fanMessage: content,
-          personaPrompt: modelSettings.rows[0].persona_prompt
+          personaId: modelSettings.rows[0].persona_id
         });
 
         if (aiResult.response) {

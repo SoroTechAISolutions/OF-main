@@ -39,6 +39,7 @@ export interface Model {
   subscription_price?: number;
   is_verified: boolean;
   persona_prompt?: string;
+  persona_id?: string;
   ai_enabled: boolean;
   settings: Record<string, any>;
   last_seen_at?: Date;

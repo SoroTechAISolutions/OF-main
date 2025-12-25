@@ -4,6 +4,7 @@
 
 import { query } from '../db/connection';
 import { AIResponse } from '../types';
+import { buildPromptForPersona, getDefaultPrompt } from './promptBuilderService';
 
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.sorotech.ru/webhook/muse-chat';
 
@@ -14,9 +15,36 @@ export async function generateAIResponse(data: {
   modelId?: string;
   fanMessage: string;
   chatHistory?: { role: string; content: string }[];
-  personaPrompt?: string;
-}): Promise<{ response: string; generationTimeMs: number }> {
+  personaId?: string;
+  modelName?: string;
+  customRules?: string[];
+}): Promise<{ response: string; generationTimeMs: number; personaUsed: string }> {
   const startTime = Date.now();
+
+  // Build dynamic system prompt based on persona
+  let systemMessage: string;
+  let personaUsed: string;
+
+  if (data.personaId) {
+    const builtPrompt = buildPromptForPersona(
+      data.personaId,
+      data.modelName,
+      { customRules: data.customRules }
+    );
+
+    if (builtPrompt) {
+      systemMessage = builtPrompt;
+      personaUsed = data.personaId;
+      console.log(`Using persona: ${data.personaId}`);
+    } else {
+      console.warn(`Persona ${data.personaId} not found, using default`);
+      systemMessage = getDefaultPrompt();
+      personaUsed = 'default';
+    }
+  } else {
+    systemMessage = getDefaultPrompt();
+    personaUsed = 'default';
+  }
 
   try {
     const response = await fetch(N8N_WEBHOOK_URL, {
@@ -25,7 +53,8 @@ export async function generateAIResponse(data: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        chatInput: data.fanMessage
+        chatInput: data.fanMessage,
+        systemMessage: systemMessage
       })
     });
 
@@ -43,7 +72,8 @@ export async function generateAIResponse(data: {
 
     return {
       response: aiResponse,
-      generationTimeMs
+      generationTimeMs,
+      personaUsed
     };
   } catch (error) {
     console.error('AI generation error:', error);
