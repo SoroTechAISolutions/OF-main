@@ -1,7 +1,7 @@
 # CURRENT TASKS
 
-**Last Updated:** December 16, 2025
-**Current Phase:** Week 3 - Dashboard + Fanvue Integration (Dec 8-21)
+**Last Updated:** December 29, 2025
+**Current Phase:** Dashboard MVP + Auto-Reply System
 
 ---
 
@@ -655,7 +655,57 @@ When migrating to Allen's server:
 
 ---
 
-**Next Task:** Fanvue OAuth flow implementation
+---
+
+## 🔥 ACTIVE: Dashboard MVP (Dec 25+)
+
+### Priority 14: AI Persona System ✅
+**Status:** COMPLETED
+**Completed:** December 25, 2025
+
+**What Was Done:**
+- [x] Created 5 AI persona archetypes (JSON configs)
+- [x] Built `promptBuilderService.ts` — dynamic prompts from JSON
+- [x] Updated `aiService.ts` to use personas
+- [x] n8n now accepts `systemMessage` parameter
+- [x] Extension endpoint accepts `personaId`
+- [x] Database migrations for persona tracking
+
+**Personas Created:** GFE Sweet, Dominant, Gamer Girl, MILF, Luxury
+**Location:** `/root/OF/config/personas/`
+
+---
+
+### Priority 15: Minimal Dashboard ⏳
+**Status:** IN PROGRESS
+**Started:** December 25, 2025
+
+**Goal:** Unblock Fanvue OAuth and Persona selection via UI
+
+**Tasks:**
+- [ ] Initialize React + Vite + Tailwind project
+- [ ] Auth pages (Login/Register)
+- [ ] Main layout (Sidebar + Header)
+- [ ] Models list page
+- [ ] Model create/edit with Persona dropdown
+- [ ] Fanvue Connect button + OAuth flow
+
+**Tech Stack:** React 18 + Vite + Tailwind + React Query + Zustand
+
+---
+
+### Priority 16: Full Dashboard (After Minimal)
+**Status:** BACKLOG
+
+**Tasks:**
+- [ ] WhatsApp-style chat inbox
+- [ ] AI suggestions display (3-5 options)
+- [ ] Fan Mini-CRM panel
+- [ ] Team management page
+- [ ] Basic analytics
+
+---
+
 **Allen's Playground:** https://sorotech.ru/of-playground/index.html
+**Dashboard Plan:** `/root/OF/docs/DASHBOARD-PLAN.md`
 **Fanvue Developer Portal:** https://fanvue.com/developers/apps
-**Next Review:** December 21, 2025 (Week 3 wrap-up)

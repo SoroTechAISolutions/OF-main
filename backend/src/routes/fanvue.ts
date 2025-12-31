@@ -362,11 +362,13 @@ router.post('/chats/:modelId/:fanUserUuid/message', async (req: Request, res: Re
       success: true,
       data: message
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fanvue send message error:', error);
+    // Pass through the actual error message from Fanvue
+    const errorMessage = error?.message || 'Failed to send message';
     res.status(500).json({
       success: false,
-      error: 'Failed to send message'
+      error: errorMessage
     });
   }
 });

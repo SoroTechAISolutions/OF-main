@@ -190,3 +190,25 @@ export async function getModelStats(modelId: string): Promise<{
     aiResponsesUsed: parseInt(aiResult.rows[0].ai_responses)
   };
 }
+
+/**
+ * Enable/disable auto-reply for a model
+ */
+export async function setAutoReply(
+  modelId: string,
+  agencyId: string,
+  enabled: boolean,
+  delaySeconds?: number
+): Promise<Model | null> {
+  const result = await query(
+    `UPDATE models SET
+       auto_reply_enabled = $1,
+       auto_reply_delay_seconds = COALESCE($2, auto_reply_delay_seconds),
+       updated_at = NOW()
+     WHERE id = $3 AND agency_id = $4
+     RETURNING *`,
+    [enabled, delaySeconds, modelId, agencyId]
+  );
+
+  return result.rows[0] || null;
+}

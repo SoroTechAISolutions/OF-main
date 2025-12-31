@@ -454,6 +454,68 @@ Webhooks:
 
 ---
 
+## ⚠️ Known API Limitations (Discovered Dec 31, 2025)
+
+### 1. No Media URLs in Messages
+
+**Problem:** The `/chats/{userUuid}/messages` endpoint returns `hasMedia: true` and `mediaType: "image"` but **does NOT provide the actual media URL**.
+
+**Impact:** We can only show a placeholder like "📷 Image attached" - cannot display actual images in dashboard.
+
+**Example Response:**
+```json
+{
+  "uuid": "8b4f8ef1-...",
+  "text": "heyy thanks for subscribing...",
+  "hasMedia": true,
+  "mediaType": "image",
+  // NO mediaUrl field!
+}
+```
+
+**Workaround:** None. This is by design - Fanvue protects creator content.
+
+---
+
+### 2. Broadcast Messages Not in Chat API
+
+**Problem:** Mass/broadcast messages sent by creators appear in the Fanvue UI chat, but are **NOT returned** by the `/chats/{userUuid}/messages` endpoint.
+
+**Example:** Creator sends "Merryyyy Christmas babe" as mass DM. It shows in Fanvue chat UI, but API only returns automated/direct messages.
+
+**Impact:** Message count in dashboard may differ from what's shown on Fanvue.
+
+**Message types affected:**
+- `BROADCAST` - Mass messages to fans
+- Possibly some `AUTOMATED_*` subtypes
+
+**Workaround:** None. API limitation.
+
+---
+
+### 3. Cannot Send to Non-Subscribers
+
+**Problem:** Calling `POST /chats/{userUuid}/message` for a non-subscriber returns:
+```json
+HTTP 400: {"message": "Invalid user UUID"}
+```
+
+**Impact:** If a fan followed but didn't subscribe, creator cannot message them first.
+
+**Dashboard behavior:** We detect this error and lock the chat input with "Subscribe to send messages".
+
+---
+
+### 4. No "Subscribe Required" Flag
+
+**Problem:** API doesn't tell us upfront if we can message a user. We only find out when send fails.
+
+**Impact:** UX is reactive (error after attempt) rather than proactive (show locked state immediately).
+
+**Workaround:** Cache failed send attempts in localStorage to show locked state on subsequent visits.
+
+---
+
 ## Next Steps
 
 1. ✅ Get OAuth credentials from Developer Portal

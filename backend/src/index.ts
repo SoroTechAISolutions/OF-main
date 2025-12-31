@@ -12,6 +12,7 @@ import swaggerUi from 'swagger-ui-express';
 import { testDbConnection } from './db/connection';
 import { testRedisConnection } from './db/redis';
 import { swaggerSpec } from './config/swagger';
+import { startAutoReplyWorker } from './workers/autoReplyWorker';
 
 // Route imports
 import healthRouter from './routes/health';
@@ -23,6 +24,7 @@ import aiRouter from './routes/ai';
 import extensionRouter from './routes/extension';
 import fanvueRouter from './routes/fanvue';
 import fanvueWebhooksRouter from './routes/fanvueWebhooks';
+import dashboardRouter from './routes/dashboard';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +46,14 @@ app.use(cors({
 app.use(morgan('dev'));
 app.use(express.json());
 
+// Disable caching for API responses
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // Swagger documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
@@ -64,6 +74,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/extension', extensionRouter);
 app.use('/api/fanvue', fanvueRouter);
 app.use('/api/webhooks/fanvue', fanvueWebhooksRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -121,7 +132,13 @@ async function startServer() {
   OF Agency API Server
   Running on port ${PORT}
   Environment: ${process.env.NODE_ENV || 'development'}
-========================================
+========================================`);
+
+      // Start auto-reply worker (every 30 seconds)
+      startAutoReplyWorker(30);
+      console.log('Auto-reply worker started');
+
+      console.log(`
 
 Available endpoints:
   GET  /                     - API info

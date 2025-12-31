@@ -11,7 +11,8 @@ import {
   createModel,
   updateModel,
   deleteModel,
-  getModelStats
+  getModelStats,
+  setAutoReply
 } from '../services/modelService';
 import { ApiResponse } from '../types';
 
@@ -254,6 +255,54 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const response: ApiResponse = {
       success: false,
       error: 'Failed to delete model'
+    };
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * PUT /api/models/:id/auto-reply
+ * Enable/disable auto-reply for model
+ */
+router.put('/:id/auto-reply', async (req: Request, res: Response) => {
+  try {
+    const { enabled, delaySeconds } = req.body;
+
+    if (typeof enabled !== 'boolean') {
+      const response: ApiResponse = {
+        success: false,
+        error: 'enabled (boolean) is required'
+      };
+      return res.status(400).json(response);
+    }
+
+    const model = await setAutoReply(
+      req.params.id,
+      req.user!.agencyId,
+      enabled,
+      delaySeconds
+    );
+
+    if (!model) {
+      const response: ApiResponse = {
+        success: false,
+        error: 'Model not found'
+      };
+      return res.status(404).json(response);
+    }
+
+    const response: ApiResponse = {
+      success: true,
+      data: { model },
+      message: enabled ? 'Auto-reply enabled' : 'Auto-reply disabled'
+    };
+    res.json(response);
+
+  } catch (error) {
+    console.error('Set auto-reply error:', error);
+    const response: ApiResponse = {
+      success: false,
+      error: 'Failed to set auto-reply'
     };
     res.status(500).json(response);
   }

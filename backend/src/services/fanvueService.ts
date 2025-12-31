@@ -89,7 +89,20 @@ async function fanvueRequest<T>(
   if (!response.ok) {
     const errorText = await response.text();
     console.error(`Fanvue API error [${response.status}]:`, errorText);
-    throw new Error(`Fanvue API error: ${response.status}`);
+    // Try to parse JSON error message
+    let errorMessage = `Fanvue API error: ${response.status}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.message) {
+        errorMessage = errorJson.message;
+      }
+    } catch {
+      // Use raw text if not JSON
+      if (errorText) {
+        errorMessage = errorText;
+      }
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json() as Promise<T>;

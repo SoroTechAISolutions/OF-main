@@ -163,6 +163,39 @@ openssl rand -hex 24
 
 ---
 
+## Auto-Reply Worker Configuration ⚠️ NEW (December 29, 2025)
+
+### 12. Worker Interval
+**Location:** `/root/OF/backend/src/workers/autoReplyWorker.ts` (line 222)
+**Current Value:** `30` seconds
+**Action Required:** Adjust based on Fanvue API rate limits
+**Status:** OK for development
+
+### 13. Processed Messages Cache Size
+**Location:** `/root/OF/backend/src/workers/autoReplyWorker.ts` (line 20)
+**Current Value:** `10000` entries
+**Action Required:** Move to Redis in production (MVP uses in-memory)
+**Status:** ⚠️ Will be lost on restart
+
+### 14. Per-Model Auto-Reply Settings
+**Location:** Database `models` table
+**Columns Added:**
+| Column | Type | Default | Notes |
+|--------|------|---------|-------|
+| `auto_reply_enabled` | BOOLEAN | `false` | Enable/disable per model |
+| `auto_reply_delay_seconds` | INTEGER | `30` | Min seconds between replies to same chat |
+
+**Action Required:** Configure per model via API or dashboard
+**API Endpoint:** `PUT /api/models/:id/auto-reply`
+
+### 15. n8n Webhook for AI Generation
+**Location:** `/root/OF/backend/src/services/aiService.ts`
+**Current Value:** `https://n8n.sorotech.ru/webhook/muse-chat`
+**Action Required:** Update to Allen's n8n URL when migrating
+**When:** During migration to production
+
+---
+
 ## Checklist Before Production
 
 - [ ] Generate new JWT_SECRET (32+ chars)
@@ -176,6 +209,9 @@ openssl rand -hex 24
 - [ ] Review all console.log statements (remove sensitive data logging)
 - [ ] Verify Fanvue credentials are set in production
 - [ ] Configure Fanvue webhooks with production URLs
+- [ ] Configure auto-reply delay per model (default: 30s)
+- [ ] Migrate processed messages cache to Redis
+- [ ] Update n8n webhook URL for AI generation
 
 ---
 
@@ -186,6 +222,7 @@ openssl rand -hex 24
 | 2025-11-25 | Initial | Created document | Dev Team |
 | 2025-12-04 | EXTENSION_API_KEY | Added Extension API Key placeholder | Dev Team |
 | 2025-12-16 | FANVUE_* | Added Fanvue OAuth credentials | Dev Team |
+| 2025-12-29 | AUTO_REPLY_* | Added auto-reply worker configuration | Dev Team |
 
 ---
 
