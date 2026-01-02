@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, MessageSquare, Zap, TrendingUp, Loader2 } from 'lucide-react';
+import { Users, MessageSquare, Zap, TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 
 interface DashboardStats {
@@ -26,12 +26,19 @@ export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const POLL_INTERVAL = 30000; // 30 seconds
 
-  const loadData = async () => {
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    } else {
+      setIsPolling(true);
+    }
+
     try {
       const [statsRes, activityRes] = await Promise.all([
         api.getDashboardStats(),
@@ -44,12 +51,32 @@ export function DashboardPage() {
       if (activityRes.success && activityRes.data) {
         setActivities(activityRes.data);
       }
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setIsLoading(false);
+      setIsPolling(false);
     }
-  };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Polling for auto-refresh
+  useEffect(() => {
+    pollIntervalRef.current = setInterval(() => {
+      loadData(true);
+    }, POLL_INTERVAL);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [loadData]);
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -105,9 +132,29 @@ export function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-dark-400 mt-1">Overview of your agency performance</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-dark-400 mt-1">Overview of your agency performance</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {isPolling && (
+            <RefreshCw className="w-4 h-4 text-primary-400 animate-spin" />
+          )}
+          {lastUpdated && (
+            <span className="text-xs text-dark-500">
+              Updated {formatTimeAgo(lastUpdated.toISOString())}
+            </span>
+          )}
+          <button
+            onClick={() => loadData()}
+            disabled={isLoading}
+            className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-dark-300 hover:text-white transition-colors disabled:opacity-50"
+            title="Refresh stats"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}

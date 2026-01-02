@@ -428,6 +428,229 @@ router.get('/personas/:personaId', async (req: Request, res: Response) => {
 });
 
 /**
+ * @swagger
+ * /api/extension/sync:
+ *   post:
+ *     summary: Sync OnlyFans chat/messages from Chrome Extension
+ *     tags: [Extension]
+ *     security:
+ *       - ExtensionKey: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [chatUrl, fanUsername, messages]
+ *             properties:
+ *               chatUrl:
+ *                 type: string
+ *                 description: OF chat URL (contains fan ID)
+ *               fanUsername:
+ *                 type: string
+ *               fanDisplayName:
+ *                 type: string
+ *               messages:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     text:
+ *                       type: string
+ *                     isFromCreator:
+ *                       type: boolean
+ *                     timestamp:
+ *                       type: string
+ *                     hasMedia:
+ *                       type: boolean
+ *                     isPPV:
+ *                       type: boolean
+ */
+router.post('/sync', async (req: Request, res: Response) => {
+  try {
+    const { chatUrl, fanUsername, fanDisplayName, messages, modelId } = req.body;
+
+    if (!chatUrl || !fanUsername || !messages) {
+      return res.status(400).json({
+        success: false,
+        error: 'chatUrl, fanUsername, and messages are required'
+      });
+    }
+
+    // Extract fan ID from URL (e.g., /my/chats/chat/195935586/)
+    const fanIdMatch = chatUrl.match(/\/chat\/(\d+)/);
+    const fanOfId = fanIdMatch ? fanIdMatch[1] : fanUsername;
+
+    console.log(`[Extension] Sync: ${messages.length} messages from ${fanUsername} (${fanOfId})`);
+
+    // Find or create chat
+    let chatResult = await pool.query(
+      `SELECT id FROM chats WHERE fan_of_id = $1`,
+      [fanOfId]
+    );
+
+    let chatId: string;
+
+    if (chatResult.rows.length === 0) {
+      // Create new chat
+      const insertChat = await pool.query(
+        `INSERT INTO chats (fan_of_id, fan_username, fan_display_name, model_id, platform)
+         VALUES ($1, $2, $3, $4, 'onlyfans')
+         ON CONFLICT (model_id, fan_of_id) DO UPDATE SET
+           fan_username = EXCLUDED.fan_username,
+           fan_display_name = EXCLUDED.fan_display_name,
+           updated_at = NOW()
+         RETURNING id`,
+        [fanOfId, fanUsername, fanDisplayName || fanUsername, modelId || null]
+      );
+      chatId = insertChat.rows[0].id;
+      console.log(`[Extension] Created new chat: ${chatId}`);
+    } else {
+      chatId = chatResult.rows[0].id;
+    }
+
+    // Sync messages
+    let newMessages = 0;
+    for (const msg of messages) {
+      // Use timestamp + text hash as unique identifier
+      const msgHash = `${msg.timestamp || ''}-${(msg.text || '').substring(0, 50)}`;
+
+      const existing = await pool.query(
+        `SELECT id FROM messages WHERE chat_id = $1 AND of_message_id = $2`,
+        [chatId, msgHash]
+      );
+
+      if (existing.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO messages (chat_id, of_message_id, direction, content, has_media, is_ppv, platform, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, 'onlyfans', $7)`,
+          [
+            chatId,
+            msgHash,
+            msg.isFromCreator ? 'outgoing' : 'incoming',
+            msg.text || '',
+            msg.hasMedia || false,
+            msg.isPPV || false,
+            msg.timestamp ? new Date(msg.timestamp) : new Date()
+          ]
+        );
+        newMessages++;
+      }
+    }
+
+    // Update chat stats
+    await pool.query(
+      `UPDATE chats SET
+         total_messages = (SELECT COUNT(*) FROM messages WHERE chat_id = $1),
+         last_message_at = (SELECT MAX(created_at) FROM messages WHERE chat_id = $1),
+         last_message_preview = $2,
+         updated_at = NOW()
+       WHERE id = $1`,
+      [chatId, messages[messages.length - 1]?.text?.substring(0, 100) || '']
+    );
+
+    res.json({
+      success: true,
+      data: {
+        chatId,
+        syncedMessages: newMessages,
+        totalMessages: messages.length
+      }
+    });
+
+  } catch (error) {
+    console.error('[Extension] Sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync messages'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/extension/chats:
+ *   get:
+ *     summary: Get synced OnlyFans chats
+ *     tags: [Extension]
+ *     security:
+ *       - ExtensionKey: []
+ */
+router.get('/chats', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        c.id,
+        c.fan_of_id,
+        c.fan_username,
+        c.fan_display_name,
+        c.total_messages,
+        c.last_message_at,
+        c.last_message_preview,
+        c.created_at
+      FROM chats c
+      WHERE c.platform = 'onlyfans' OR c.platform IS NULL
+      ORDER BY c.last_message_at DESC NULLS LAST
+      LIMIT 50
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('[Extension] Get chats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get chats'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/extension/chats/{chatId}/messages:
+ *   get:
+ *     summary: Get messages for a synced OnlyFans chat
+ *     tags: [Extension]
+ *     security:
+ *       - ExtensionKey: []
+ */
+router.get('/chats/:chatId/messages', async (req: Request, res: Response) => {
+  try {
+    const { chatId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const result = await pool.query(`
+      SELECT
+        id,
+        direction,
+        content,
+        has_media,
+        is_ppv,
+        created_at
+      FROM messages
+      WHERE chat_id = $1
+      ORDER BY created_at ASC
+      LIMIT $2
+    `, [chatId, limit]);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('[Extension] Get messages error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get messages'
+    });
+  }
+});
+
+/**
  * Helper: Log extension response to database
  */
 async function logExtensionResponse(data: {

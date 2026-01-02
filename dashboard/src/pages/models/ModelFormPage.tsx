@@ -18,6 +18,7 @@ export function ModelFormPage() {
   const isEdit = Boolean(id);
 
   const [name, setName] = useState('');
+  const [ofUsername, setOfUsername] = useState('');
   const [platform, setPlatform] = useState<'onlyfans' | 'fanvue' | 'both'>('onlyfans');
   const [personaId, setPersonaId] = useState('gfe_sweet');
   const [status, setStatus] = useState<'active' | 'paused' | 'inactive'>('active');
@@ -51,6 +52,7 @@ export function ModelFormPage() {
       if (response.success && response.data) {
         const model = response.data;
         setName(model.display_name);
+        setOfUsername(model.of_username || '');
         setPlatform(model.platform);
         setPersonaId(model.persona_id || 'gfe_sweet');
         setStatus(model.ai_enabled ? 'active' : 'inactive');
@@ -73,6 +75,7 @@ export function ModelFormPage() {
       if (isEdit && id) {
         const data: UpdateModelRequest = {
           display_name: name,
+          of_username: ofUsername,
           platform,
           persona_id: personaId,
           ai_enabled: status === 'active'
@@ -81,6 +84,7 @@ export function ModelFormPage() {
       } else {
         const data: CreateModelRequest = {
           display_name: name,
+          of_username: ofUsername,
           platform,
           persona_id: personaId
         };
@@ -146,6 +150,30 @@ export function ModelFormPage() {
               required
             />
           </div>
+
+          {/* OF Username */}
+          {(platform === 'onlyfans' || platform === 'both') && (
+            <div>
+              <label htmlFor="ofUsername" className="label">
+                OnlyFans Username
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400">@</span>
+                <input
+                  type="text"
+                  id="ofUsername"
+                  value={ofUsername}
+                  onChange={(e) => setOfUsername(e.target.value.replace('@', ''))}
+                  className="input pl-8"
+                  placeholder="username"
+                  required
+                />
+              </div>
+              <p className="text-xs text-dark-400 mt-1">
+                The username from onlyfans.com/@username
+              </p>
+            </div>
+          )}
 
           {/* Platform */}
           <div>

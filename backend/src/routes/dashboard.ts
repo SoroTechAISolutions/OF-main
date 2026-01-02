@@ -26,26 +26,26 @@ router.get('/stats', async (req: Request, res: Response) => {
       [agencyId]
     );
 
-    // Get AI responses stats for last 24h
+    // Get AI responses stats for last 24h (from ai_responses - webhook responses)
     const aiStatsResult = await pool.query(`
       SELECT
         COUNT(*) as total_requests,
-        COUNT(CASE WHEN was_used = true THEN 1 END) as used_count,
-        COALESCE(AVG(generation_time_ms), 0) as avg_response_time
-      FROM extension_logs
+        COUNT(*) as used_count,
+        COALESCE(AVG(latency_ms), 0) as avg_response_time
+      FROM ai_responses
       WHERE created_at > NOW() - INTERVAL '24 hours'
     `);
 
     // Get AI responses for today vs yesterday (for comparison)
     const todayResult = await pool.query(`
       SELECT COUNT(*) as count
-      FROM extension_logs
+      FROM ai_responses
       WHERE created_at > NOW() - INTERVAL '24 hours'
     `);
 
     const yesterdayResult = await pool.query(`
       SELECT COUNT(*) as count
-      FROM extension_logs
+      FROM ai_responses
       WHERE created_at > NOW() - INTERVAL '48 hours'
         AND created_at <= NOW() - INTERVAL '24 hours'
     `);
@@ -98,29 +98,28 @@ router.get('/activity', async (req: Request, res: Response) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
 
-    // Get recent AI generations
+    // Get recent AI generations from ai_responses (webhook) table
     const result = await pool.query(`
       SELECT
-        el.id,
-        el.model_username,
-        el.fan_name,
-        el.persona_id,
-        el.was_used,
-        el.generation_time_ms,
-        el.created_at
-      FROM extension_logs el
-      ORDER BY el.created_at DESC
+        ar.id,
+        m.display_name as model_name,
+        LEFT(ar.input_text, 50) as fan_message,
+        ar.latency_ms,
+        ar.created_at
+      FROM ai_responses ar
+      LEFT JOIN models m ON ar.model_id = m.id
+      ORDER BY ar.created_at DESC
       LIMIT $1
     `, [limit]);
 
     const activities = result.rows.map(row => ({
       id: row.id,
-      model: row.model_username || 'Unknown',
-      action: row.was_used ? 'AI response sent' : 'AI response generated',
-      fanName: row.fan_name,
-      persona: row.persona_id,
+      model: row.model_name || 'Unknown',
+      action: 'AI response sent',
+      fanName: row.fan_message ? row.fan_message.substring(0, 30) + '...' : 'Unknown',
+      persona: 'auto',
       time: row.created_at,
-      responseTime: row.generation_time_ms
+      responseTime: row.latency_ms
     }));
 
     res.json({

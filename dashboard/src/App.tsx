@@ -1,12 +1,10 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MainLayout } from './components/layout';
 import { LoginPage, RegisterPage } from './pages/auth';
 import { DashboardPage } from './pages/dashboard';
 import { ModelsPage, ModelFormPage, FanvueConnectPage } from './pages/models';
-import { ChatsPage, ChatDetailPage } from './pages/chats';
-import { useAuthStore } from './stores/authStore';
+import { ChatsPage, ChatDetailPage, OFChatDetailPage } from './pages/chats';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,11 +16,8 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const { checkAuth } = useAuthStore();
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  // checkAuth is now called automatically after zustand rehydration
+  // See authStore.ts onRehydrateStorage
 
   return (
     <Routes>
@@ -41,6 +36,7 @@ function AppContent() {
         {/* Chats */}
         <Route path="/chats" element={<ChatsPage />} />
         <Route path="/chats/:modelId/:fanUserUuid" element={<ChatDetailPage />} />
+        <Route path="/chats/of/:chatId" element={<OFChatDetailPage />} />
 
         {/* Placeholder routes */}
         <Route path="/analytics" element={<PlaceholderPage title="Analytics" />} />

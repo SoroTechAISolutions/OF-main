@@ -92,7 +92,7 @@ export function requireRole(...roles: string[]) {
  * Generate JWT tokens
  */
 export function generateTokens(payload: Omit<JWTPayload, 'iat' | 'exp'>) {
-  const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '15m' });
+  const accessToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });  // 1 hour for convenience
   const refreshToken = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 
   return { accessToken, refreshToken };

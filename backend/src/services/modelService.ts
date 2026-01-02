@@ -73,8 +73,8 @@ export async function createModel(agencyId: string, data: Partial<Model>): Promi
     `INSERT INTO models (
       agency_id, of_username, of_user_id, display_name, avatar_url,
       header_url, subscription_price, is_verified, persona_prompt,
-      ai_enabled, settings
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ai_enabled, settings, platform, persona_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     RETURNING *`,
     [
       agencyId,
@@ -87,7 +87,9 @@ export async function createModel(agencyId: string, data: Partial<Model>): Promi
       data.is_verified || false,
       data.persona_prompt || null,
       data.ai_enabled !== false, // default true
-      JSON.stringify(data.settings || {})
+      JSON.stringify(data.settings || {}),
+      data.platform || 'onlyfans',
+      data.persona_id || 'gfe_sweet'
     ]
   );
   return result.rows[0];
@@ -109,7 +111,7 @@ export async function updateModel(
   const allowedFields = [
     'of_username', 'of_user_id', 'display_name', 'avatar_url',
     'header_url', 'subscription_price', 'is_verified', 'persona_prompt',
-    'ai_enabled', 'settings', 'last_seen_at'
+    'ai_enabled', 'settings', 'last_seen_at', 'platform', 'persona_id'
   ];
 
   for (const field of allowedFields) {

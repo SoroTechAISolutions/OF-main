@@ -38,9 +38,14 @@ class ApiService {
       (response) => response,
       (error: AxiosError) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/of-dashboard/login';
+          // Only redirect if not already on login page and not during initial auth check
+          const isLoginPage = window.location.pathname.includes('/login');
+          const isProfileCheck = error.config?.url?.includes('/auth/profile');
+
+          if (!isLoginPage && !isProfileCheck) {
+            localStorage.removeItem('token');
+            window.location.href = '/of-dashboard/login';
+          }
         }
         return Promise.reject(error);
       }
@@ -159,6 +164,41 @@ class ApiService {
       }
       return { success: false, error: error.message || 'Failed to send message' };
     }
+  }
+
+  // OnlyFans (via Extension sync)
+  async getOnlyFansChats(): Promise<ApiResponse<Array<{
+    id: string;
+    fan_of_id: string;
+    fan_username: string;
+    fan_display_name: string;
+    total_messages: number;
+    last_message_at: string | null;
+    last_message_preview: string | null;
+    created_at: string;
+  }>>> {
+    const response = await this.client.get('/extension/chats', {
+      headers: {
+        'X-Extension-Key': 'muse-alpha-2025',
+      },
+    });
+    return response.data;
+  }
+
+  async getOnlyFansMessages(chatId: string): Promise<ApiResponse<Array<{
+    id: string;
+    direction: string;
+    content: string;
+    has_media: boolean;
+    is_ppv: boolean;
+    created_at: string;
+  }>>> {
+    const response = await this.client.get(`/extension/chats/${chatId}/messages`, {
+      headers: {
+        'X-Extension-Key': 'muse-alpha-2025',
+      },
+    });
+    return response.data;
   }
 
   // Dashboard

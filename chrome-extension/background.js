@@ -7,6 +7,7 @@
 const CONFIG = {
   // Backend API (goes through our server, logs to DB)
   apiUrl: 'https://sorotech.ru/of-api/extension/generate',
+  syncUrl: 'https://sorotech.ru/of-api/extension/sync',
   apiKey: 'muse-alpha-2025',
   // Direct n8n fallback
   webhookUrl: 'https://n8n.sorotech.ru/webhook/muse-chat',
@@ -111,6 +112,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // Notify popup if open
       notifyPopup('new_message', message.data);
+      break;
+
+    case 'sync_messages':
+      // Sync all messages to backend for Dashboard
+      log('SYNC MESSAGES REQUEST', message.data);
+      syncMessagesToBackend(message.data)
+        .then(result => {
+          log('Sync completed:', result);
+        })
+        .catch(err => {
+          log('Sync error:', err.message);
+        });
+      sendResponse({ success: true, syncing: true });
       break;
 
     case 'get_state':
@@ -232,7 +246,8 @@ async function generateAIResponse(messageData, tabId) {
         },
         body: JSON.stringify({
           fanMessage: messageData.text,
-          fanName: messageData.userName || 'Fan'
+          fanName: messageData.userName || 'Fan',
+          personaId: 'gfe_sweet' // Default persona for now
         }),
         signal: controller.signal
       });
@@ -259,7 +274,8 @@ async function generateAIResponse(messageData, tabId) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          chatInput: messageData.text
+          chatInput: messageData.text,
+          systemMessage: 'You are a flirty OnlyFans creator. Be playful and engaging. ALWAYS respond in English only. Keep responses short (1-3 sentences).'
         })
       });
 
@@ -292,6 +308,43 @@ async function generateAIResponse(messageData, tabId) {
       throw new Error('Request timed out');
     }
     log('API error:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Sync messages to Backend for Dashboard display
+ */
+async function syncMessagesToBackend(data) {
+  try {
+    const { chatUrl, fanUsername, fanDisplayName, messages } = data;
+
+    log(`Syncing ${messages?.length || 0} messages to backend...`);
+
+    const response = await fetch(CONFIG.syncUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': CONFIG.apiKey
+      },
+      body: JSON.stringify({
+        chatUrl,
+        fanUsername,
+        fanDisplayName,
+        messages: messages || []
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Sync failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    log('Sync result:', result);
+    return result;
+
+  } catch (err) {
+    log('Sync error:', err.message);
     throw err;
   }
 }

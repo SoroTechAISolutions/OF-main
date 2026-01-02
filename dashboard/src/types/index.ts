@@ -53,12 +53,14 @@ export interface ModelStats {
 
 export interface CreateModelRequest {
   display_name: string;
+  of_username: string;
   platform: 'onlyfans' | 'fanvue' | 'both';
   persona_id: string;
 }
 
 export interface UpdateModelRequest {
   display_name?: string;
+  of_username?: string;
   platform?: 'onlyfans' | 'fanvue' | 'both';
   persona_id?: string;
   ai_enabled?: boolean;

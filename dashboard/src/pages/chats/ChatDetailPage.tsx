@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, Image, Star, AlertCircle, Lock } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Image, Star, AlertCircle, Lock, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 
 interface FanvueMessage {
@@ -27,6 +27,16 @@ interface FanInfo {
   isTopSpender: boolean;
 }
 
+interface LastMessageFromUrl {
+  uuid: string;
+  text: string;
+  sentAt: string;
+  hasMedia: boolean;
+  mediaType: string | null;
+  type: string;
+  senderUuid: string;
+}
+
 export function ChatDetailPage() {
   const { modelId, fanUserUuid } = useParams<{ modelId: string; fanUserUuid: string }>();
   const [searchParams] = useSearchParams();
@@ -41,9 +51,12 @@ export function ChatDetailPage() {
   const [creatorUuid, setCreatorUuid] = useState<string | null>(null);
   const [canReply, setCanReply] = useState(true);
   const [replyBlockReason, setReplyBlockReason] = useState('');
+  const [isPolling, setIsPolling] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const POLL_INTERVAL = 5000; // 5 seconds for active chat
 
   // Get fan info from URL params
   useEffect(() => {
@@ -72,47 +85,103 @@ export function ChatDetailPage() {
     }
   }, [fanUserUuid]);
 
-  // Load messages
-  useEffect(() => {
-    if (modelId && fanUserUuid) {
-      loadMessages();
-    }
-  }, [modelId, fanUserUuid]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const loadMessages = async () => {
+  // Load messages function with silent mode support
+  const loadMessages = useCallback(async (silent = false) => {
     if (!modelId || !fanUserUuid) return;
 
-    setIsLoading(true);
-    setError('');
+    if (!silent) {
+      setIsLoading(true);
+    } else {
+      setIsPolling(true);
+    }
+    if (!silent) {
+      setError('');
+    }
 
     try {
-      // First get model info to know creator UUID
-      const modelRes = await api.getModel(modelId);
-      // API returns { model: {...} } so we need to access .model
-      const modelData = (modelRes.data as any)?.model || modelRes.data;
-      const newCreatorUuid = modelData?.fanvue_user_uuid || null;
-      if (modelRes.success && newCreatorUuid) {
-        setCreatorUuid(newCreatorUuid);
+      // First get model info to know creator UUID (only on initial load)
+      if (!creatorUuid) {
+        const modelRes = await api.getModel(modelId);
+        const modelData = (modelRes.data as any)?.model || modelRes.data;
+        const newCreatorUuid = modelData?.fanvue_user_uuid || null;
+        if (modelRes.success && newCreatorUuid) {
+          setCreatorUuid(newCreatorUuid);
+        }
       }
 
       const response = await api.getFanvueMessages(modelId, fanUserUuid);
       if (response.success && response.data) {
         // Messages come newest first, reverse for chat display
-        setMessages([...(response.data.messages as unknown as FanvueMessage[])].reverse());
-      } else {
+        let messagesArray = [...(response.data.messages as unknown as FanvueMessage[])].reverse();
+
+        // Check if we have lastMessage from URL (for broadcast messages API doesn't return)
+        const lastMsgParam = searchParams.get('lastMsg');
+        if (lastMsgParam) {
+          try {
+            const lastMsg: LastMessageFromUrl = JSON.parse(lastMsgParam);
+            const exists = messagesArray.some(m => m.uuid === lastMsg.uuid);
+            if (!exists && lastMsg.text) {
+              const convertedMsg: FanvueMessage = {
+                uuid: lastMsg.uuid,
+                text: lastMsg.text,
+                sentAt: lastMsg.sentAt,
+                sender: { uuid: lastMsg.senderUuid, handle: '' },
+                recipient: { uuid: fanUserUuid || '', handle: '' },
+                hasMedia: lastMsg.hasMedia,
+                mediaType: lastMsg.mediaType,
+                type: lastMsg.type
+              };
+              messagesArray.push(convertedMsg);
+            }
+          } catch (e) {
+            console.error('Failed to parse lastMsg from URL:', e);
+          }
+        }
+
+        setMessages(messagesArray);
+      } else if (!silent) {
         setError(response.error || 'Failed to load messages');
       }
     } catch (err) {
-      setError('Failed to load messages');
+      if (!silent) {
+        setError('Failed to load messages');
+      }
     } finally {
       setIsLoading(false);
+      setIsPolling(false);
     }
-  };
+  }, [modelId, fanUserUuid, creatorUuid, searchParams]);
+
+  // Load messages on mount
+  useEffect(() => {
+    if (modelId && fanUserUuid) {
+      loadMessages();
+    }
+  }, [modelId, fanUserUuid, loadMessages]);
+
+  // Polling for new messages
+  useEffect(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    if (modelId && fanUserUuid) {
+      pollIntervalRef.current = setInterval(() => {
+        loadMessages(true); // Silent refresh
+      }, POLL_INTERVAL);
+    }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, [modelId, fanUserUuid, loadMessages]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   // Check if message is from the creator (model) or the fan
   const isFromCreator = (message: FanvueMessage) => {
@@ -235,6 +304,11 @@ export function ChatDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Polling indicator */}
+        {isPolling && (
+          <RefreshCw className="w-4 h-4 text-purple-400 animate-spin ml-auto" />
+        )}
       </div>
 
       {/* Messages Area */}
@@ -247,7 +321,7 @@ export function ChatDetailPage() {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
             <p className="text-red-400 mb-4">{error}</p>
-            <button onClick={loadMessages} className="btn btn-primary">
+            <button onClick={() => loadMessages()} className="btn btn-primary">
               Retry
             </button>
           </div>
@@ -283,6 +357,15 @@ export function ChatDetailPage() {
                          '📎 Media attached'}
                       </span>
                     </div>
+                  )}
+
+                  {/* Broadcast/Auto label */}
+                  {(message.type === 'BROADCAST' || message.type?.startsWith('AUTOMATED')) && (
+                    <p className={`text-xs mb-1 italic ${
+                      fromCreator ? 'text-primary-200' : 'text-dark-500'
+                    }`}>
+                      {message.type === 'BROADCAST' ? '📢 Mass DM' : '🤖 Auto-message'}
+                    </p>
                   )}
 
                   {/* Text */}

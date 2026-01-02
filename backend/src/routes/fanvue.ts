@@ -18,7 +18,8 @@ import {
   sendMassMessage,
   getSubscribers,
   getCreatorProfile,
-  syncAllChats
+  syncAllChats,
+  markChatAsRead
 } from '../services/fanvueService';
 
 const router = Router();
@@ -313,14 +314,52 @@ router.get('/chats/:modelId/:fanUserUuid/messages', async (req: Request, res: Re
     const { modelId, fanUserUuid } = req.params;
     const { limit, cursor } = req.query;
 
+    // Mark chat as read when opening (don't await - fire and forget)
+    markChatAsRead(modelId, fanUserUuid).catch(() => {});
+
+    // Get messages from API
     const result = await getChatMessages(modelId, fanUserUuid, {
       limit: limit ? parseInt(limit as string) : undefined,
       cursor: cursor as string
     });
 
+    let messages: any[] = result.messages || [];
+
+    // Also get chat info to check for broadcast/auto messages not returned by /messages
+    try {
+      const chatsResult = await getChats(modelId, { limit: 50 });
+      const thisChat = (chatsResult.chats as any[]).find((c: any) => c.user?.uuid === fanUserUuid);
+
+      if (thisChat?.lastMessage) {
+        const lastMsg = thisChat.lastMessage as any;
+        // Check if lastMessage is not in messages array (broadcast/auto messages)
+        const exists = messages.some((m: any) => m.uuid === lastMsg.uuid);
+
+        if (!exists && lastMsg.text) {
+          // Convert to message format and add to end (newest)
+          const broadcastMsg = {
+            uuid: lastMsg.uuid,
+            text: lastMsg.text,
+            sentAt: lastMsg.sentAt,
+            sender: { uuid: lastMsg.senderUuid, handle: '' },
+            recipient: { uuid: fanUserUuid, handle: '' },
+            hasMedia: lastMsg.hasMedia || false,
+            mediaType: lastMsg.mediaType || null,
+            type: lastMsg.type || 'BROADCAST'
+          };
+          // unshift to add at beginning (API returns newest-first, frontend reverses)
+          messages.unshift(broadcastMsg);
+          console.log(`Added broadcast/auto message to chat: ${lastMsg.type}`);
+        }
+      }
+    } catch (chatErr) {
+      console.error('Failed to get chat info for broadcast messages:', chatErr);
+      // Continue with original messages
+    }
+
     res.json({
       success: true,
-      data: result.messages,
+      data: messages,
       pagination: { nextCursor: result.nextCursor }
     });
   } catch (error) {

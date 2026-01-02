@@ -4,7 +4,7 @@
 
 import { query } from '../db/connection';
 import { getChats, getChatMessages, sendMessage } from '../services/fanvueService';
-import { generateAIResponse } from '../services/aiService';
+import { generateAIResponse, logAIResponse } from '../services/aiService';
 
 interface ModelWithAutoReply {
   id: string;
@@ -152,21 +152,13 @@ async function processModelChats(model: ModelWithAutoReply): Promise<number> {
 
         console.log(`[AutoReply] ✓ Sent response to ${fanUsername}`);
 
-        // Log to extension_logs for dashboard stats
-        await query(`
-          INSERT INTO extension_logs (
-            model_username, fan_name, persona_id,
-            fan_message, generated_response,
-            generation_time_ms, was_used
-          ) VALUES ($1, $2, $3, $4, $5, $6, true)
-        `, [
-          model.fanvue_username || model.of_username,
-          fanUsername,
-          model.persona_id || 'gfe_sweet',
+        // Log to ai_responses table (unified logging)
+        await logAIResponse({
+          modelId: model.id,
           fanMessage,
-          aiResult.response,
-          aiResult.generationTimeMs
-        ]);
+          generatedResponse: aiResult.response,
+          generationTimeMs: aiResult.generationTimeMs
+        });
 
         // Mark message as processed
         processedMessages.add(messageKey);

@@ -64,8 +64,8 @@ Fully automated AI response system for Fanvue. The worker runs every 30 seconds,
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  6. Log to extension_logs table (for dashboard stats)       │
-│     was_used = true                                         │
+│  6. Log to ai_responses table (unified with webhooks)       │
+│     via logAIResponse() service                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,14 +79,13 @@ ALTER TABLE models ADD COLUMN auto_reply_enabled BOOLEAN DEFAULT false;
 ALTER TABLE models ADD COLUMN auto_reply_delay_seconds INTEGER DEFAULT 30;
 ```
 
-### Extension Logs Table (existing, reused)
+### AI Responses Table (unified logging)
 ```sql
--- Worker logs here with was_used = true
-INSERT INTO extension_logs (
-  model_username, fan_name, persona_id,
-  fan_message, generated_response,
-  generation_time_ms, was_used
-) VALUES ($1, $2, $3, $4, $5, $6, true);
+-- Both webhook and worker log here via logAIResponse()
+INSERT INTO ai_responses (
+  model_id, input_text, output_text,
+  latency_ms
+) VALUES ($1, $2, $3, $4);
 ```
 
 ---
@@ -278,7 +277,7 @@ docker logs of-backend --tail 50 | grep AutoReply
 docker exec postgres psql -U learnmate -d of_agency_db -c "
   SELECT COUNT(*) as total,
          COUNT(*) FILTER (WHERE was_used = true) as auto_sent
-  FROM extension_logs
+  FROM ai_responses
   WHERE created_at > NOW() - INTERVAL '24 hours'
 "
 ```

@@ -6,7 +6,7 @@ import { getFanvueTokens, getFanvueApiConfig } from './fanvueOAuthService';
 import { query } from '../db/connection';
 
 interface FanvueApiOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: any;
   params?: Record<string, string>;
 }
@@ -142,6 +142,31 @@ export async function getChats(
 }
 
 /**
+ * Mark a chat as read
+ */
+export async function markChatAsRead(
+  modelId: string,
+  fanUserUuid: string
+): Promise<boolean> {
+  try {
+    // Try PATCH /chats/{userUuid} with isRead: true
+    await fanvueRequest<any>(
+      modelId,
+      `/chats/${fanUserUuid}`,
+      {
+        method: 'PATCH',
+        body: { isRead: true }
+      }
+    );
+    console.log(`Marked chat ${fanUserUuid} as read`);
+    return true;
+  } catch (error) {
+    console.error('Failed to mark chat as read:', error);
+    return false;
+  }
+}
+
+/**
  * Get messages for a specific chat
  */
 export async function getChatMessages(
@@ -153,6 +178,7 @@ export async function getChatMessages(
     before?: string;
   } = {}
 ): Promise<{ messages: FanvueMessage[]; nextCursor?: string }> {
+  // Original params from working commit
   const params: Record<string, string> = {
     limit: String(options.limit || 50)
   };

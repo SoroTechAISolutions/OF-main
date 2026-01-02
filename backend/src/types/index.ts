@@ -40,6 +40,7 @@ export interface Model {
   is_verified: boolean;
   persona_prompt?: string;
   persona_id?: string;
+  platform: 'onlyfans' | 'fanvue' | 'both';
   ai_enabled: boolean;
   settings: Record<string, any>;
   last_seen_at?: Date;

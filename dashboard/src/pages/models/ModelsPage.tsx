@@ -180,6 +180,28 @@ export function ModelsPage() {
                   </div>
                 )}
 
+                {/* OnlyFans status */}
+                {model.platform !== 'fanvue' && (
+                  <div className="mt-4 pt-4 border-t border-dark-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-dark-400">OnlyFans</span>
+                      {model.of_username ? (
+                        <span className="text-xs text-blue-400 flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          @{model.of_username}
+                        </span>
+                      ) : (
+                        <Link
+                          to={`/models/${model.id}/edit`}
+                          className="text-xs text-primary-400 hover:text-primary-300"
+                        >
+                          Add username →
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Fanvue status */}
                 {model.platform !== 'onlyfans' && (
                   <div className="mt-4 pt-4 border-t border-dark-700">

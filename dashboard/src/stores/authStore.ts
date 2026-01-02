@@ -16,7 +16,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: true,
+      isLoading: false, // Start with false, not true
 
       login: async (data: LoginRequest) => {
         const response = await api.login(data);
@@ -52,6 +52,7 @@ export const useAuthStore = create<AuthStore>()(
           return;
         }
 
+        set({ isLoading: true });
         try {
           const response = await api.getProfile();
           if (response.success && response.data) {
@@ -68,7 +69,11 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ token: state.token }),
+      partialize: (state) => ({
+        token: state.token,
+        user: state.user,
+        isAuthenticated: state.isAuthenticated
+      }),
     }
   )
 );

@@ -1,9 +1,9 @@
 # CURRENT TASKS - PART 2
 
-**Last Updated:** December 31, 2025
-**Current Phase:** Week 6-7 — OnlyFans Integration + Mobile Polish
+**Last Updated:** January 2, 2026
+**Current Phase:** Week 7 — Stabilization + OnlyFans Integration
 
-> Этот файл содержит актуальное состояние проекта. Для полной истории см. `CURRENT-TASKS.md`
+> This file contains current project status. For full history see `CURRENT-TASKS.md` (archive)
 
 ---
 
@@ -62,8 +62,9 @@
 
 ---
 
-### Auto-Reply Worker ✅ (NEW!)
+### Auto-Reply Worker ✅
 **Completed:** December 29, 2025
+**Updated:** January 2, 2026 (unified logging)
 **Location:** `/root/OF/backend/src/workers/autoReplyWorker.ts`
 **Docs:** `/root/OF/docs/AUTO-REPLY-WORKER.md`
 
@@ -74,7 +75,7 @@
 - Skips broadcasts, automated messages, already-replied
 - Generates AI response via n8n (uses model's persona)
 - Sends response via Fanvue API
-- Logs to `extension_logs` for dashboard stats
+- Logs to `ai_responses` table (unified with webhook handler)
 
 **Database Changes:**
 ```sql
@@ -230,7 +231,18 @@ Message sent via OF native UI
 
 ## 🐛 KNOWN ISSUES / FIXES
 
-### Dec 31: Fanvue API Limitations ⚠️ NEW
+### Jan 2: Dashboard Fixes ✅ FIXED
+**Problems Fixed:**
+1. **Session persistence** — Users were logged out on page refresh
+   - Fixed: Zustand persist middleware now saves `isAuthenticated`
+2. **Chat polling** — Chats didn't update without page refresh
+   - Fixed: Added polling (10s for chat list, 5s for messages, 30s for dashboard)
+3. **AI Responses counter** — Dashboard showed wrong count
+   - Fixed: Changed query from `extension_logs` to `ai_responses` table
+4. **Unified logging** — Worker and webhook used different tables
+   - Fixed: Both now use `ai_responses` via `logAIResponse()`
+
+### Dec 31: Fanvue API Limitations ⚠️
 **Documented:** `/root/OF/docs/fanvue-api-research.md`
 
 | Limitation | Impact | Workaround |
@@ -275,5 +287,5 @@ Currently Chrome Extension only. When OF releases official API:
 
 ---
 
-**Last Updated:** December 31, 2025 @ 18:00 MSK
-**Next Review:** After OF Integration testing
+**Last Updated:** January 2, 2026 @ 07:30 MSK
+**Next Review:** After Sophie auto-reply test
